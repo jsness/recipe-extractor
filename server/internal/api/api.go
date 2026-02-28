@@ -92,6 +92,23 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existing, err := h.store.GetRecipeExtractionBySourceURL(r.Context(), req.URL)
+	if err != nil {
+		h.logger.Printf("lookup extraction by url: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if existing != nil && (existing.Status == "done" || existing.Status == "queued" || existing.Status == "extracting") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		msg := "This URL has already been extracted."
+		if existing.Status == "queued" || existing.Status == "extracting" {
+			msg = "This URL is already being extracted."
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+		return
+	}
+
 	extraction, err := h.store.CreateRecipeExtraction(r.Context(), req.URL)
 	if err != nil {
 		h.logger.Printf("create extraction: %v", err)

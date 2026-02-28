@@ -81,7 +81,12 @@ export const App = () => {
       });
 
       if (!res.ok) {
-        throw new Error(`Create request failed (${res.status})`);
+        let message = `Create request failed (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body.error) message = body.error;
+        } catch {}
+        throw new Error(message);
       }
 
       const body = (await res.json()) as CreateRecipeResponse;
@@ -126,7 +131,7 @@ export const App = () => {
         <ExtractForm url={url} setURL={setURL} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
 
         {submitError && (
-          <Alert color="red" title="Error">
+          <Alert color="red" title="Error" withCloseButton onClose={() => setSubmitError("")}>
             {submitError}
           </Alert>
         )}

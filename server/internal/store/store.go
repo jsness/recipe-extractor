@@ -89,6 +89,43 @@ func (s *Store) CreateRecipeExtraction(ctx context.Context, sourceURL string) (R
 	return extraction, err
 }
 
+func (s *Store) GetRecipeExtractionBySourceURL(ctx context.Context, sourceURL string) (*RecipeExtraction, error) {
+	const q = `
+		SELECT
+			id::text,
+			source_url,
+			status,
+			recipe_id::text,
+			error_message,
+			created_at,
+			updated_at
+		FROM recipe_extractions
+		WHERE source_url = $1
+	`
+
+	var extraction RecipeExtraction
+	var recipeID sql.NullString
+	var errorMessage sql.NullString
+	err := s.Pool.QueryRow(ctx, q, sourceURL).Scan(
+		&extraction.ID,
+		&extraction.SourceURL,
+		&extraction.Status,
+		&recipeID,
+		&errorMessage,
+		&extraction.CreatedAt,
+		&extraction.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	extraction.RecipeID = nullableStringPtr(recipeID)
+	extraction.ErrorMessage = nullableStringPtr(errorMessage)
+	return &extraction, nil
+}
+
 func (s *Store) GetRecipeExtractionByID(ctx context.Context, id string) (RecipeExtraction, error) {
 	const q = `
 		SELECT
