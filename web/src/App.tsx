@@ -14,6 +14,7 @@ export const App = () => {
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
+  const [newRecipeId, setNewRecipeId] = useState<string | null>(null);
 
   const terminalStatuses = useMemo(() => new Set(["done", "failed"]), []);
 
@@ -37,6 +38,13 @@ export const App = () => {
         }
         const body = (await res.json()) as ExtractionStatusResponse;
         setExtraction(body);
+        if (body.status === "done" && body.recipe_id) {
+          const recipesRes = await fetch("/api/v1/recipes");
+          if (recipesRes.ok) {
+            setRecipes(await recipesRes.json() as RecipeSummary[]);
+            setNewRecipeId(body.recipe_id);
+          }
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown polling error";
         setSubmitError(message);
@@ -50,6 +58,7 @@ export const App = () => {
     event.preventDefault();
     setSubmitError("");
     setExtraction(null);
+    setNewRecipeId(null);
 
     let parsedURL: URL;
     try {
@@ -130,7 +139,7 @@ export const App = () => {
           <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />
         ) : (
           recipes.length > 0 && (
-            <RecipeList recipes={recipes} isLoadingRecipe={isLoadingRecipe} onView={handleViewRecipe} />
+            <RecipeList recipes={recipes} isLoadingRecipe={isLoadingRecipe} onView={handleViewRecipe} newRecipeId={newRecipeId} />
           )
         )}
       </Stack>
