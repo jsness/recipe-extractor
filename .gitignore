@@ -1,0 +1,14 @@
+# Environment
+.env
+
+# Go
+server/recipe-extractor.exe
+server/recipe-extractor
+
+# Node
+web/node_modules/
+web/dist/
+
+# OS
+.DS_Store
+Thumbs.db

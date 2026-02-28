@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fail commit if UTF-8 BOM is present in tracked text files
+powershell -ExecutionPolicy Bypass -File scripts/check-bom.ps1
+if [ $? -ne 0 ]; then
+  exit 1
+fi
