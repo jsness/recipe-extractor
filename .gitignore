@@ -12,3 +12,6 @@ web/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# git-ignore directory
+git-ignore

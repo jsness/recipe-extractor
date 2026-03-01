@@ -51,30 +51,23 @@ type createRecipeResponse struct {
 	Status       string `json:"status"`
 }
 
-type recipeResponse struct {
-	ID           string                 `json:"id"`
-	Title        string                 `json:"title"`
-	Ingredients  []store.IngredientGroup `json:"ingredients"`
-	Instructions []string               `json:"instructions"`
-	Yield        *string                `json:"yield,omitempty"`
-	Times        map[string]string      `json:"times,omitempty"`
-	Notes        *string                `json:"notes,omitempty"`
-	SourceURL    string                 `json:"source_url"`
-	CreatedAt    time.Time              `json:"created_at"`
+type relatedRecipeResponse struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Relationship string `json:"relationship"` // "component" | "used_in"
 }
 
-func recipeToResponse(r store.Recipe) recipeResponse {
-	return recipeResponse{
-		ID:           r.ID,
-		Title:        r.Title,
-		Ingredients:  r.Ingredients,
-		Instructions: r.Instructions,
-		Yield:        r.Yield,
-		Times:        r.Times,
-		Notes:        r.Notes,
-		SourceURL:    r.SourceURL,
-		CreatedAt:    r.CreatedAt,
-	}
+type recipeResponse struct {
+	ID             string                  `json:"id"`
+	Title          string                  `json:"title"`
+	Ingredients    []store.IngredientGroup `json:"ingredients"`
+	Instructions   []string                `json:"instructions"`
+	Yield          *string                 `json:"yield,omitempty"`
+	Times          map[string]string       `json:"times,omitempty"`
+	Notes          *string                 `json:"notes,omitempty"`
+	SourceURL      string                  `json:"source_url"`
+	CreatedAt      time.Time               `json:"created_at"`
+	RelatedRecipes []relatedRecipeResponse `json:"related_recipes,omitempty"`
 }
 
 type getRecipeExtractionResponse struct {
@@ -164,8 +157,34 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	related, err := h.store.GetRelatedRecipes(r.Context(), id)
+	if err != nil {
+		h.logger.Printf("get related recipes %s: %v", id, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp := recipeResponse{
+		ID:           recipe.ID,
+		Title:        recipe.Title,
+		Ingredients:  recipe.Ingredients,
+		Instructions: recipe.Instructions,
+		Yield:        recipe.Yield,
+		Times:        recipe.Times,
+		Notes:        recipe.Notes,
+		SourceURL:    recipe.SourceURL,
+		CreatedAt:    recipe.CreatedAt,
+	}
+	for _, rel := range related {
+		resp.RelatedRecipes = append(resp.RelatedRecipes, relatedRecipeResponse{
+			ID:           rel.ID,
+			Title:        rel.Title,
+			Relationship: rel.Relationship,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(recipeToResponse(recipe))
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Request) {

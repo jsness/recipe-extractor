@@ -141,7 +141,7 @@ export const App = () => {
         )}
 
         {selectedRecipe ? (
-          <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />
+          <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} onSelectRecipe={handleViewRecipe} />
         ) : (
           recipes.length > 0 && (
             <RecipeList recipes={recipes} isLoadingRecipe={isLoadingRecipe} onView={handleViewRecipe} newRecipeId={newRecipeId} />

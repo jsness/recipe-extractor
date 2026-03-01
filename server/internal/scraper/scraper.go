@@ -21,6 +21,7 @@ type Result struct {
 	HTML      string
 	JSONLD    []string
 	Text      string
+	Links     []string // deduplicated "link text [url]" annotations from every <a> in the page
 }
 
 func New(timeout time.Duration) *Scraper {
@@ -54,21 +55,24 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 
 	html := string(bodyBytes)
 	jsonld := extractJSONLD(html)
-	text := collapseWhitespace(stripTags(html))
+	text := collapseWhitespace(stripTags(annotateLinks(html)))
 	if len(text) > 20000 {
 		text = text[:20000]
 	}
+	links := extractLinks(html)
 
 	return Result{
 		SourceURL: sourceURL,
 		HTML:      html,
 		JSONLD:    jsonld,
 		Text:      text,
+		Links:     links,
 	}, nil
 }
 
 var jsonLDRegex = regexp.MustCompile(`(?is)<script[^>]*type=["']application/ld\+json["'][^>]*>(.*?)</script>`)
 var tagRegex = regexp.MustCompile(`(?s)<[^>]+>`)
+var linkRegex = regexp.MustCompile(`(?is)<a\s+[^>]*href=["']([^"'#][^"']*)["'][^>]*>(.*?)</a>`)
 
 func extractJSONLD(html string) []string {
 	matches := jsonLDRegex.FindAllStringSubmatch(html, -1)
@@ -81,6 +85,32 @@ func extractJSONLD(html string) []string {
 		if value != "" {
 			out = append(out, value)
 		}
+	}
+	return out
+}
+
+func annotateLinks(html string) string {
+	return linkRegex.ReplaceAllString(html, "$2 [$1]")
+}
+
+func extractLinks(html string) []string {
+	matches := linkRegex.FindAllStringSubmatch(html, -1)
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if len(m) < 3 {
+			continue
+		}
+		href := strings.TrimSpace(m[1])
+		text := collapseWhitespace(stripTags(m[2]))
+		if href == "" || len(text) < 4 {
+			continue
+		}
+		if _, ok := seen[href]; ok {
+			continue
+		}
+		seen[href] = struct{}{}
+		out = append(out, text+" ["+href+"]")
 	}
 	return out
 }

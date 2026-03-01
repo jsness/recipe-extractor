@@ -102,6 +102,7 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 		SourceURL: scrapeResult.SourceURL,
 		JSONLD:    scrapeResult.JSONLD,
 		Text:      scrapeResult.Text,
+		Links:     scrapeResult.Links,
 	})
 	if err != nil {
 		return fmt.Errorf("normalize recipe: %w", err)
@@ -113,16 +114,29 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 	}
 
 	recipeID, err := w.store.UpsertRecipe(ctx, store.RecipeInput{
-		Title:        normalizedRecipe.Title,
-		Ingredients:  ingredients,
-		Instructions: normalizedRecipe.Instructions,
-		Yield:        normalizedRecipe.Yield,
-		Times:        normalizedRecipe.Times,
-		Notes:        normalizedRecipe.Notes,
-		SourceURL:    extraction.SourceURL,
+		Title:            normalizedRecipe.Title,
+		Ingredients:      ingredients,
+		Instructions:     normalizedRecipe.Instructions,
+		Yield:            normalizedRecipe.Yield,
+		Times:            normalizedRecipe.Times,
+		Notes:            normalizedRecipe.Notes,
+		SourceURL:        extraction.SourceURL,
+		LinkedRecipeURLs: normalizedRecipe.LinkedRecipeURLs,
 	})
 	if err != nil {
 		return fmt.Errorf("store recipe: %w", err)
+	}
+
+	for _, linkedURL := range normalizedRecipe.LinkedRecipeURLs {
+		if err := w.store.QueueLinkedRecipeExtraction(ctx, recipeID, linkedURL); err != nil {
+			w.logger.Printf("queue linked recipe url=%s: %v", linkedURL, err)
+		}
+	}
+
+	if extraction.ParentRecipeID != nil {
+		if err := w.store.CreateRecipeRelationship(ctx, *extraction.ParentRecipeID, recipeID); err != nil {
+			w.logger.Printf("create recipe relationship parent=%s child=%s: %v", *extraction.ParentRecipeID, recipeID, err)
+		}
 	}
 
 	if err := w.store.UpdateRecipeExtractionStatus(ctx, extraction.ID, "done", &recipeID, nil); err != nil {

@@ -4,9 +4,10 @@ import { Recipe } from "../types";
 type RecipeDetailProps = {
   recipe: Recipe;
   onBack: () => void;
+  onSelectRecipe: (id: string) => void;
 };
 
-export const RecipeDetail = ({ recipe, onBack }: RecipeDetailProps) => {
+export const RecipeDetail = ({ recipe, onBack, onSelectRecipe }: RecipeDetailProps) => {
   const timeEntries = recipe.times ? Object.entries(recipe.times) : [];
 
   return (
@@ -66,6 +67,56 @@ export const RecipeDetail = ({ recipe, onBack }: RecipeDetailProps) => {
           <div>
             <Title order={4} mb="xs">Notes</Title>
             <Text size="sm">{recipe.notes}</Text>
+          </div>
+        </>
+      )}
+
+      {recipe.related_recipes?.some((r) => r.relationship === "component") && (
+        <>
+          <Divider />
+          <div>
+            <Title order={4} mb="xs">Sub-recipes</Title>
+            <Stack gap={4}>
+              {recipe.related_recipes
+                .filter((r) => r.relationship === "component")
+                .map((r) => (
+                  <Button
+                    key={r.id}
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => onSelectRecipe(r.id)}
+                    justify="flex-start"
+                    px={0}
+                  >
+                    {r.title}
+                  </Button>
+                ))}
+            </Stack>
+          </div>
+        </>
+      )}
+
+      {recipe.related_recipes?.some((r) => r.relationship === "used_in") && (
+        <>
+          <Divider />
+          <div>
+            <Title order={4} mb="xs">Used in</Title>
+            <Stack gap={4}>
+              {recipe.related_recipes
+                .filter((r) => r.relationship === "used_in")
+                .map((r) => (
+                  <Button
+                    key={r.id}
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => onSelectRecipe(r.id)}
+                    justify="flex-start"
+                    px={0}
+                  >
+                    {r.title}
+                  </Button>
+                ))}
+            </Stack>
           </div>
         </>
       )}

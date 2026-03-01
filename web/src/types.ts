@@ -21,6 +21,12 @@ export type IngredientGroup = {
   items: string[];
 };
 
+export type RelatedRecipe = {
+  id: string;
+  title: string;
+  relationship: "component" | "used_in";
+};
+
 export type Recipe = {
   id: string;
   title: string;
@@ -31,4 +37,5 @@ export type Recipe = {
   notes?: string;
   source_url: string;
   created_at: string;
+  related_recipes?: RelatedRecipe[];
 };

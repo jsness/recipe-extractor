@@ -20,13 +20,14 @@ func New(pool *pgxpool.Pool) *Store {
 }
 
 type RecipeExtraction struct {
-	ID           string
-	SourceURL    string
-	Status       string
-	RecipeID     *string
-	ErrorMessage *string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID             string
+	SourceURL      string
+	Status         string
+	RecipeID       *string
+	ErrorMessage   *string
+	ParentRecipeID *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type IngredientGroup struct {
@@ -35,25 +36,27 @@ type IngredientGroup struct {
 }
 
 type Recipe struct {
-	ID           string
-	Title        string
-	Ingredients  []IngredientGroup
-	Instructions []string
-	Yield        *string
-	Times        map[string]string
-	Notes        *string
-	SourceURL    string
-	CreatedAt    time.Time
+	ID               string
+	Title            string
+	Ingredients      []IngredientGroup
+	Instructions     []string
+	Yield            *string
+	Times            map[string]string
+	Notes            *string
+	SourceURL        string
+	LinkedRecipeURLs []string
+	CreatedAt        time.Time
 }
 
 type RecipeInput struct {
-	Title        string
-	Ingredients  []IngredientGroup
-	Instructions []string
-	Yield        *string
-	Times        map[string]string
-	Notes        *string
-	SourceURL    string
+	Title            string
+	Ingredients      []IngredientGroup
+	Instructions     []string
+	Yield            *string
+	Times            map[string]string
+	Notes            *string
+	SourceURL        string
+	LinkedRecipeURLs []string
 }
 
 func (s *Store) CreateRecipeExtraction(ctx context.Context, sourceURL string) (RecipeExtraction, error) {
@@ -183,6 +186,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 	var extraction RecipeExtraction
 	var recipeID sql.NullString
 	var errorMessage sql.NullString
+	var parentRecipeID sql.NullString
 	err = tx.QueryRow(ctx, `
 		UPDATE recipe_extractions
 		SET status = 'extracting', updated_at = now()
@@ -193,6 +197,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 			status,
 			recipe_id::text,
 			error_message,
+			parent_recipe_id::text,
 			created_at,
 			updated_at
 	`, id).Scan(
@@ -201,6 +206,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 		&extraction.Status,
 		&recipeID,
 		&errorMessage,
+		&parentRecipeID,
 		&extraction.CreatedAt,
 		&extraction.UpdatedAt,
 	)
@@ -209,6 +215,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 	}
 	extraction.RecipeID = nullableStringPtr(recipeID)
 	extraction.ErrorMessage = nullableStringPtr(errorMessage)
+	extraction.ParentRecipeID = nullableStringPtr(parentRecipeID)
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
@@ -231,18 +238,18 @@ func (s *Store) UpdateRecipeExtractionStatus(ctx context.Context, id, status str
 
 func (s *Store) GetRecipeByID(ctx context.Context, id string) (Recipe, error) {
 	const q = `
-		SELECT id::text, title, ingredients, instructions, yield, times, notes, source_url, created_at
+		SELECT id::text, title, ingredients, instructions, yield, times, notes, source_url, linked_recipe_urls, created_at
 		FROM recipes
 		WHERE id = $1
 	`
 
 	var r Recipe
-	var ingredientsRaw, instructionsRaw, timesRaw []byte
+	var ingredientsRaw, instructionsRaw, timesRaw, linkedURLsRaw []byte
 	var yield, notes sql.NullString
 
 	err := s.Pool.QueryRow(ctx, q, id).Scan(
 		&r.ID, &r.Title, &ingredientsRaw, &instructionsRaw,
-		&yield, &timesRaw, &notes, &r.SourceURL, &r.CreatedAt,
+		&yield, &timesRaw, &notes, &r.SourceURL, &linkedURLsRaw, &r.CreatedAt,
 	)
 	if err != nil {
 		return Recipe{}, err
@@ -256,6 +263,11 @@ func (s *Store) GetRecipeByID(ctx context.Context, id string) (Recipe, error) {
 	}
 	if len(timesRaw) > 0 {
 		if err := json.Unmarshal(timesRaw, &r.Times); err != nil {
+			return Recipe{}, err
+		}
+	}
+	if len(linkedURLsRaw) > 0 {
+		if err := json.Unmarshal(linkedURLsRaw, &r.LinkedRecipeURLs); err != nil {
 			return Recipe{}, err
 		}
 	}
@@ -312,9 +324,18 @@ func (s *Store) UpsertRecipe(ctx context.Context, input RecipeInput) (string, er
 		}
 	}
 
+	linkedURLs := input.LinkedRecipeURLs
+	if linkedURLs == nil {
+		linkedURLs = []string{}
+	}
+	linkedURLsJSON, err := json.Marshal(linkedURLs)
+	if err != nil {
+		return "", err
+	}
+
 	const q = `
-		INSERT INTO recipes (title, ingredients, instructions, yield, times, notes, source_url)
-		VALUES ($1, $2::jsonb, $3::jsonb, $4, $5::jsonb, $6, $7)
+		INSERT INTO recipes (title, ingredients, instructions, yield, times, notes, source_url, linked_recipe_urls)
+		VALUES ($1, $2::jsonb, $3::jsonb, $4, $5::jsonb, $6, $7, $8::jsonb)
 		ON CONFLICT (source_url) DO UPDATE
 		SET
 			title = EXCLUDED.title,
@@ -322,7 +343,8 @@ func (s *Store) UpsertRecipe(ctx context.Context, input RecipeInput) (string, er
 			instructions = EXCLUDED.instructions,
 			yield = EXCLUDED.yield,
 			times = EXCLUDED.times,
-			notes = EXCLUDED.notes
+			notes = EXCLUDED.notes,
+			linked_recipe_urls = EXCLUDED.linked_recipe_urls
 		RETURNING id::text
 	`
 
@@ -337,11 +359,81 @@ func (s *Store) UpsertRecipe(ctx context.Context, input RecipeInput) (string, er
 		nullableJSONString(timesJSON),
 		input.Notes,
 		input.SourceURL,
+		string(linkedURLsJSON),
 	).Scan(&recipeID)
 	if err != nil {
 		return "", err
 	}
 	return recipeID, nil
+}
+
+type RelatedRecipe struct {
+	ID           string
+	Title        string
+	Relationship string // "component" or "used_in"
+}
+
+// QueueLinkedRecipeExtraction queues a linked URL for extraction tied to a parent recipe.
+// If the URL is already extracted, it creates the relationship immediately.
+// If already queued or extracting, it no-ops (relationship will be created on completion).
+func (s *Store) QueueLinkedRecipeExtraction(ctx context.Context, parentRecipeID, linkedURL string) error {
+	existing, err := s.GetRecipeExtractionBySourceURL(ctx, linkedURL)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		if existing.Status == "done" && existing.RecipeID != nil {
+			return s.CreateRecipeRelationship(ctx, parentRecipeID, *existing.RecipeID)
+		}
+		return nil
+	}
+
+	_, err = s.Pool.Exec(ctx, `
+		INSERT INTO recipe_extractions (source_url, status, parent_recipe_id)
+		VALUES ($1, 'queued', $2)
+	`, linkedURL, parentRecipeID)
+	return err
+}
+
+// CreateRecipeRelationship records a parent→child recipe relationship (idempotent).
+func (s *Store) CreateRecipeRelationship(ctx context.Context, parentID, childID string) error {
+	_, err := s.Pool.Exec(ctx, `
+		INSERT INTO recipe_relationships (parent_recipe_id, child_recipe_id)
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`, parentID, childID)
+	return err
+}
+
+// GetRelatedRecipes returns recipes linked from (component) or linking to (used_in) the given recipe.
+func (s *Store) GetRelatedRecipes(ctx context.Context, recipeID string) ([]RelatedRecipe, error) {
+	const q = `
+		SELECT r.id::text, r.title, 'component' AS relationship
+		FROM recipe_relationships rr
+		JOIN recipes r ON r.id = rr.child_recipe_id
+		WHERE rr.parent_recipe_id = $1
+		UNION
+		SELECT r.id::text, r.title, 'used_in' AS relationship
+		FROM recipe_relationships rr
+		JOIN recipes r ON r.id = rr.parent_recipe_id
+		WHERE rr.child_recipe_id = $1
+	`
+
+	rows, err := s.Pool.Query(ctx, q, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var related []RelatedRecipe
+	for rows.Next() {
+		var r RelatedRecipe
+		if err := rows.Scan(&r.ID, &r.Title, &r.Relationship); err != nil {
+			return nil, err
+		}
+		related = append(related, r)
+	}
+	return related, rows.Err()
 }
 
 func nullableStringPtr(v sql.NullString) *string {
