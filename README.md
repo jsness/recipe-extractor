@@ -1,5 +1,7 @@
 # Recipe Extractor
 
+[![Publish Docker image](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml)
+
 A web app that scrapes a recipe URL, normalizes it with an LLM, and saves it to a searchable library. Paste a URL, click Extract, and the backend fetches the page, sends the content to an AI model, and stores a clean structured recipe.
 
 Most recipe websites bury ingredients and instructions inside walls of ads, pop-ups, and life stories. Recipe Extractor strips all of that away. You get just the recipe, stored in a consistent structure you actually own, with no account required and no dependency on the original site staying online.
@@ -24,8 +26,7 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 
 ## Quickstart
 
-**Requires:** [Docker](https://docs.docker.com/get-docker/) and an
-[Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key.
+**Requires:** [Docker](https://docs.docker.com/get-docker/) and an [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key.
 
 ### No-clone install (recommended)
 
@@ -37,7 +38,7 @@ nano .env   # set ANTHROPIC_API_KEY or OPENAI_API_KEY
 docker compose up -d
 ```
 
-Open **http://localhost:8080**. Data persists in a Docker volume across restarts.
+Open **http://localhost:8080**. Data persists in a Docker volume across restarts. Port can be changed in `compose.yml`.
 
 ### Build from source
 
@@ -60,6 +61,31 @@ cp .env.example .env   # set ANTHROPIC_API_KEY or OPENAI_API_KEY
 ```
 
 The Go server runs on `:8080` and the Vite dev server runs on `:5173` (proxies `/api/*` to the backend automatically).
+
+## Using an Existing PostgreSQL Instance
+
+If you already have a PostgreSQL instance running, set `DATABASE_URL` in your `.env` to point at it and start only the app service — skipping the bundled postgres container entirely:
+
+```bash
+# .env
+DATABASE_URL=postgres://user:password@your-host:5432/recipes?sslmode=disable
+```
+
+```bash
+docker compose up -d app
+```
+
+The app will run migrations automatically on startup, so no manual schema setup is needed.
+
+## Remote Access with Tailscale
+
+To access your recipe library from your phone, laptop, or anywhere else without exposing anything to the public internet, [Tailscale](https://tailscale.com) is the easiest option:
+
+1. Install Tailscale on the machine running the stack and sign in
+2. `docker compose up -d` as normal
+3. Open `http://<tailscale-ip>:8080` from any device on your tailnet
+
+Your Tailscale IP is shown in the Tailscale app or via `tailscale ip -4`. No port forwarding or firewall rules needed.
 
 ## Prerequisites (local dev only)
 
