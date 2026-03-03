@@ -25,14 +25,14 @@ func New(cfg config.Config, s *store.Store, logger *log.Logger) *Worker {
 		ext     extractor.Extractor
 		timeout time.Duration
 	)
-	if cfg.Extractor == "anthropic" {
+	if cfg.Extractor == "anthropic" && cfg.AnthropicAPIKey != "" {
 		timeout = time.Duration(cfg.AnthropicTimeoutSeconds) * time.Second
 		ext = extractor.NewAnthropic(extractor.AnthropicConfig{
 			APIKey:  cfg.AnthropicAPIKey,
 			Model:   cfg.AnthropicModel,
 			Timeout: timeout,
 		})
-	} else {
+	} else if cfg.Extractor != "anthropic" && cfg.OpenAIAPIKey != "" {
 		timeout = time.Duration(cfg.OpenAITimeoutSeconds) * time.Second
 		ext = extractor.NewOpenAI(extractor.OpenAIConfig{
 			APIKey:         cfg.OpenAIAPIKey,
@@ -43,6 +43,10 @@ func New(cfg config.Config, s *store.Store, logger *log.Logger) *Worker {
 			Timeout:        timeout,
 		})
 	}
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	ext = extractor.NewJSONLDExtractor(ext, logger)
 	return &Worker{
 		store:        s,
 		scraper:      scraper.New(timeout),
