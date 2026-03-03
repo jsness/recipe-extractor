@@ -3,14 +3,17 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
 	"recipe-extractor/server/internal/config"
+	"recipe-extractor/server/internal/frontend"
 	"recipe-extractor/server/internal/store"
 )
 
@@ -38,6 +41,23 @@ func (h *Handler) Routes() http.Handler {
 		r.Get("/recipes/{id}", h.handleGetRecipe)
 		r.Get("/recipe-extractions/{id}", h.handleGetRecipeExtraction)
 	})
+
+	// Serve embedded frontend (SPA). Falls back to index.html for client-side routing.
+	// Skipped gracefully if no frontend is embedded (local dev uses Vite on :5173).
+	if _, err := frontend.FS.Open("dist/index.html"); err == nil {
+		distFS, _ := fs.Sub(frontend.FS, "dist")
+		fileServer := http.FileServer(http.FS(distFS))
+		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/")
+			if path == "" {
+				path = "index.html"
+			}
+			if _, err := distFS.Open(path); err != nil {
+				r.URL.Path = "/"
+			}
+			fileServer.ServeHTTP(w, r)
+		}))
+	}
 
 	return r
 }

@@ -22,67 +22,51 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 | Frontend | React 18, TypeScript, Vite, Mantine 8 |
 | Dev DB | Docker Compose |
 
-## Prerequisites
+## Quickstart
 
-- [Go 1.24+](https://go.dev/dl/)
-- [Node.js 18+](https://nodejs.org/) and npm
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for the local Postgres container)
-- An API key for either Anthropic or OpenAI
+**Requires:** [Docker](https://docs.docker.com/get-docker/) and an
+[Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key.
 
-## Quickstart (Windows)
+### No-clone install (recommended)
+
+```bash
+mkdir recipe-extractor && cd recipe-extractor
+curl -o compose.yml https://raw.githubusercontent.com/jsness/recipe-extractor/main/compose.yml
+curl -o .env https://raw.githubusercontent.com/jsness/recipe-extractor/main/.env.example
+nano .env   # set ANTHROPIC_API_KEY or OPENAI_API_KEY
+docker compose up -d
+```
+
+Open **http://localhost:8080**. Data persists in a Docker volume across restarts.
+
+### Build from source
+
+```bash
+git clone https://github.com/jsness/recipe-extractor
+cd recipe-extractor
+cp .env.example .env   # set ANTHROPIC_API_KEY or OPENAI_API_KEY
+docker compose build && docker compose up -d
+```
+
+Open **http://localhost:8080**.
+
+### Local development (Windows)
+
+If you want to work on the code with hot-reloading:
 
 ```powershell
-cd C:\dev\recipe-extractor
-
-# 1. Copy environment template and fill in your API key
-copy .env.example .env
-notepad .env
-
-# 2. Start everything (Postgres container + Go server + Vite dev server)
+cp .env.example .env   # set ANTHROPIC_API_KEY or OPENAI_API_KEY
 .\scripts\dev.ps1
 ```
 
-Then open `http://localhost:5173` in your browser.
+The Go server runs on `:8080` and the Vite dev server runs on `:5173` (proxies `/api/*` to the backend automatically).
 
-The `dev.ps1` script:
-- Starts the Docker Compose Postgres container if it isn't already running
-- Runs the Go server (`server/`) in the background
-- Runs the Vite dev server (`web/`) in the foreground
+## Prerequisites (local dev only)
 
-## Manual Setup
-
-If you prefer to run each piece yourself:
-
-```powershell
-# 1. Start Postgres
-docker compose up -d
-
-# 2. Start the Go backend (from repo root)
-cd server
-go run ./cmd/server
-
-# 3. Start the frontend dev server (separate terminal)
-cd web
-npm install
-npm run dev
-```
-
-Backend listens on `:8080`. Frontend dev server listens on `:5173` and proxies `/api/*` requests to the backend automatically.
-
-## Building for Production
-
-```powershell
-# Build the frontend
-cd web
-npm run build
-# Output goes to web/dist/
-
-# Build the Go binary
-cd server
-go build -o recipe-extractor.exe ./cmd/server
-```
-
-Serve `web/dist/` as static files from the Go server or a separate static host, and point the frontend's API calls at the Go binary.
+- [Go 1.24+](https://go.dev/dl/)
+- [Node.js 18+](https://nodejs.org/) and npm
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- An API key for either Anthropic or OpenAI
 
 ## Documentation
 

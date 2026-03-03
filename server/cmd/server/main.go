@@ -7,11 +7,14 @@ import (
 	"os"
 	"time"
 
+	migratelite "github.com/jsness/go-migrate-lite"
+
 	"recipe-extractor/server/internal/api"
 	"recipe-extractor/server/internal/config"
 	"recipe-extractor/server/internal/db"
 	"recipe-extractor/server/internal/store"
 	"recipe-extractor/server/internal/worker"
+	"recipe-extractor/server/migrations"
 )
 
 func main() {
@@ -26,6 +29,11 @@ func main() {
 		logger.Fatalf("db connect: %v", err)
 	}
 	defer pool.Close()
+
+	logger.Printf("running migrations")
+	if err := migratelite.Run(ctx, pool, migrations.SQL); err != nil {
+		logger.Fatalf("migrations: %v", err)
+	}
 
 	s := store.New(pool)
 	h := api.NewHandler(cfg, s, logger)
