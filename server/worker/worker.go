@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
+	"recipe-extractor/server/extractor"
 	"recipe-extractor/server/internal/config"
-	"recipe-extractor/server/internal/extractor"
-	"recipe-extractor/server/internal/scraper"
-	"recipe-extractor/server/internal/store"
+	"recipe-extractor/server/scraper"
+	"recipe-extractor/server/store"
 )
 
 type Worker struct {

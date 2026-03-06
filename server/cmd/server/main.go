@@ -12,9 +12,9 @@ import (
 	"recipe-extractor/server/internal/api"
 	"recipe-extractor/server/internal/config"
 	"recipe-extractor/server/internal/db"
-	"recipe-extractor/server/internal/store"
-	"recipe-extractor/server/internal/worker"
 	"recipe-extractor/server/migrations"
+	"recipe-extractor/server/store"
+	"recipe-extractor/server/worker"
 )
 
 func main() {

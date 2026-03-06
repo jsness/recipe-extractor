@@ -14,7 +14,7 @@ import (
 
 	"recipe-extractor/server/internal/config"
 	"recipe-extractor/server/internal/frontend"
-	"recipe-extractor/server/internal/store"
+	"recipe-extractor/server/store"
 )
 
 type Handler struct {
