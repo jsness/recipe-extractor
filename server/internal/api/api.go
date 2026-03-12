@@ -1,13 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -62,45 +60,9 @@ func (h *Handler) Routes() http.Handler {
 	return r
 }
 
-type createRecipeRequest struct {
-	URL string `json:"url"`
-}
-
-type createRecipeResponse struct {
-	ExtractionID string `json:"extraction_id"`
-	Status       string `json:"status"`
-}
-
-type relatedRecipeResponse struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Relationship string `json:"relationship"` // "component" | "used_in"
-}
-
-type recipeResponse struct {
-	ID             string                  `json:"id"`
-	Title          string                  `json:"title"`
-	Ingredients    []store.IngredientGroup `json:"ingredients"`
-	Instructions   []string                `json:"instructions"`
-	Yield          *string                 `json:"yield,omitempty"`
-	Times          map[string]string       `json:"times,omitempty"`
-	Notes          *string                 `json:"notes,omitempty"`
-	SourceURL      string                  `json:"source_url"`
-	CreatedAt      time.Time               `json:"created_at"`
-	RelatedRecipes []relatedRecipeResponse `json:"related_recipes,omitempty"`
-}
-
-type getRecipeExtractionResponse struct {
-	ID           string  `json:"id"`
-	SourceURL    string  `json:"source_url"`
-	Status       string  `json:"status"`
-	RecipeID     *string `json:"recipe_id,omitempty"`
-	ErrorMessage *string `json:"error_message,omitempty"`
-}
-
 func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	var req createRecipeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
+	if err := decodeJSON(r, &req); err != nil || req.URL == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -112,13 +74,11 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing != nil && (existing.Status == "done" || existing.Status == "queued" || existing.Status == "extracting") {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
 		msg := "This URL has already been extracted."
 		if existing.Status == "queued" || existing.Status == "extracting" {
 			msg = "This URL is already being extracted."
 		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
 		return
 	}
 
@@ -129,17 +89,10 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(createRecipeResponse{
+	writeJSON(w, http.StatusAccepted, createRecipeResponse{
 		ExtractionID: extraction.ID,
 		Status:       extraction.Status,
 	})
-}
-
-type recipeSummaryResponse struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
 }
 
 func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
@@ -155,8 +108,7 @@ func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
 		resp[i] = recipeSummaryResponse{ID: r.ID, Title: r.Title}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
@@ -184,27 +136,7 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := recipeResponse{
-		ID:           recipe.ID,
-		Title:        recipe.Title,
-		Ingredients:  recipe.Ingredients,
-		Instructions: recipe.Instructions,
-		Yield:        recipe.Yield,
-		Times:        recipe.Times,
-		Notes:        recipe.Notes,
-		SourceURL:    recipe.SourceURL,
-		CreatedAt:    recipe.CreatedAt,
-	}
-	for _, rel := range related {
-		resp.RelatedRecipes = append(resp.RelatedRecipes, relatedRecipeResponse{
-			ID:           rel.ID,
-			Title:        rel.Title,
-			Relationship: rel.Relationship,
-		})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, http.StatusOK, newRecipeResponse(recipe, related))
 }
 
 func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Request) {
@@ -225,12 +157,5 @@ func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(getRecipeExtractionResponse{
-		ID:           extraction.ID,
-		SourceURL:    extraction.SourceURL,
-		Status:       extraction.Status,
-		RecipeID:     extraction.RecipeID,
-		ErrorMessage: extraction.ErrorMessage,
-	})
+	writeJSON(w, http.StatusOK, newRecipeExtractionResponse(extraction))
 }
