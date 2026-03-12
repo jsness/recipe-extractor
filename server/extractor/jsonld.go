@@ -22,7 +22,7 @@ func NewJSONLDExtractor(fallback Extractor, logger *log.Logger) Extractor {
 func (e *jsonldExtractor) NormalizeRecipe(ctx context.Context, input Input) (Recipe, error) {
 	var lastErr error
 	for _, raw := range input.JSONLD {
-		recipe, err := tryParseJSONLD(raw)
+		recipe, err := tryParseJSONLD(raw, input.Ingredients)
 		if err == nil {
 			e.logger.Printf("json-ld parse succeeded")
 			return recipe, nil
@@ -41,7 +41,7 @@ func (e *jsonldExtractor) NormalizeRecipe(ctx context.Context, input Input) (Rec
 	return Recipe{}, fmt.Errorf("could not extract recipe from structured data: %s", reason)
 }
 
-func tryParseJSONLD(raw string) (Recipe, error) {
+func tryParseJSONLD(raw string, ingredientGroups []IngredientGroup) (Recipe, error) {
 	var node map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &node); err != nil {
 		return Recipe{}, fmt.Errorf("unmarshal: %w", err)
@@ -53,7 +53,7 @@ func tryParseJSONLD(raw string) (Recipe, error) {
 		if err := json.Unmarshal(graphRaw, &graph); err == nil {
 			for _, item := range graph {
 				if isRecipeType(item) {
-					return mapToRecipe(item)
+					return mapToRecipe(item, ingredientGroups)
 				}
 			}
 		}
@@ -61,7 +61,7 @@ func tryParseJSONLD(raw string) (Recipe, error) {
 
 	// Check if root node is a Recipe
 	if isRecipeType(node) {
-		return mapToRecipe(node)
+		return mapToRecipe(node, ingredientGroups)
 	}
 
 	return Recipe{}, fmt.Errorf("no Recipe node found")
@@ -87,7 +87,7 @@ func isRecipeType(node map[string]json.RawMessage) bool {
 	return false
 }
 
-func mapToRecipe(node map[string]json.RawMessage) (Recipe, error) {
+func mapToRecipe(node map[string]json.RawMessage, ingredientGroups []IngredientGroup) (Recipe, error) {
 	var recipe Recipe
 
 	if v, ok := node["name"]; ok {
@@ -147,6 +147,10 @@ func mapToRecipe(node map[string]json.RawMessage) (Recipe, error) {
 		if err := json.Unmarshal(v, &s); err == nil && s != "" {
 			recipe.Notes = &s
 		}
+	}
+
+	if merged, ok := mergeIngredientGroups(recipe.Ingredients, ingredientGroups); ok {
+		recipe.Ingredients = merged
 	}
 
 	normalizeRecipe(&recipe)
@@ -245,4 +249,74 @@ func parseDuration(s string) string {
 		return s
 	}
 	return strings.Join(parts, " ")
+}
+
+func mergeIngredientGroups(jsonLDGroups []IngredientGroup, htmlGroups []IngredientGroup) ([]IngredientGroup, bool) {
+	if len(jsonLDGroups) != 1 || len(htmlGroups) == 0 {
+		return nil, false
+	}
+
+	jsonLDItems := jsonLDGroups[0].Items
+	if len(jsonLDItems) == 0 || len(jsonLDGroups[0].Group) != 0 {
+		return nil, false
+	}
+
+	htmlItems := flattenIngredientItems(htmlGroups)
+	if len(htmlItems) != len(jsonLDItems) {
+		return nil, false
+	}
+
+	for i := range jsonLDItems {
+		if normalizeIngredientForMatch(jsonLDItems[i]) != normalizeIngredientForMatch(htmlItems[i]) {
+			return nil, false
+		}
+	}
+
+	merged := make([]IngredientGroup, 0, len(htmlGroups))
+	offset := 0
+	for _, group := range htmlGroups {
+		size := len(group.Items)
+		if size == 0 {
+			continue
+		}
+		merged = append(merged, IngredientGroup{
+			Group: strings.TrimSpace(group.Group),
+			Items: append([]string(nil), jsonLDItems[offset:offset+size]...),
+		})
+		offset += size
+	}
+
+	if offset != len(jsonLDItems) || len(merged) == 0 {
+		return nil, false
+	}
+	return merged, true
+}
+
+func flattenIngredientItems(groups []IngredientGroup) []string {
+	total := 0
+	for _, group := range groups {
+		total += len(group.Items)
+	}
+
+	items := make([]string, 0, total)
+	for _, group := range groups {
+		items = append(items, group.Items...)
+	}
+	return items
+}
+
+var ingredientNormalizer = strings.NewReplacer(
+	"\u00a0", " ",
+	"(", " ",
+	")", " ",
+	",", " ",
+	":", " ",
+	";", " ",
+)
+
+func normalizeIngredientForMatch(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = ingredientNormalizer.Replace(s)
+	s = strings.Join(strings.Fields(s), " ")
+	return s
 }

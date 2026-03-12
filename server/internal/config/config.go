@@ -6,17 +6,18 @@ import (
 )
 
 type Config struct {
-	HTTPAddr             string
-	DatabaseURL          string
-	Extractor            string
-	OpenAIAPIKey         string
-	OpenAIModel          string
-	OpenAIBaseURL        string
-	OpenAIProjectID      string
-	OpenAIOrganizationID string
-	OpenAITimeoutSeconds int
-	AnthropicAPIKey      string
-	AnthropicModel       string
+	HTTPAddr                string
+	DatabaseURL             string
+	Extractor               string
+	LLMOnlyExtraction       bool
+	OpenAIAPIKey            string
+	OpenAIModel             string
+	OpenAIBaseURL           string
+	OpenAIProjectID         string
+	OpenAIOrganizationID    string
+	OpenAITimeoutSeconds    int
+	AnthropicAPIKey         string
+	AnthropicModel          string
 	AnthropicTimeoutSeconds int
 }
 
@@ -27,6 +28,7 @@ func LoadFromEnv() Config {
 		HTTPAddr:                addr,
 		DatabaseURL:             db,
 		Extractor:               getenv("EXTRACTOR", "openai"),
+		LLMOnlyExtraction:       getenvBool("LLM_ONLY_EXTRACTION", false),
 		OpenAIAPIKey:            getenv("OPENAI_API_KEY", ""),
 		OpenAIModel:             getenv("OPENAI_MODEL", "gpt-5-mini"),
 		OpenAIBaseURL:           getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
@@ -52,6 +54,18 @@ func getenvInt(key string, def int) int {
 		return def
 	}
 	parsed, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return parsed
+}
+
+func getenvBool(key string, def bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	parsed, err := strconv.ParseBool(v)
 	if err != nil {
 		return def
 	}

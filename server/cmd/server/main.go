@@ -37,7 +37,10 @@ func main() {
 
 	s := store.New(pool)
 	h := api.NewHandler(cfg, s, logger)
-	w := worker.New(cfg, s, logger)
+	w, err := worker.New(cfg, s, logger)
+	if err != nil {
+		logger.Fatalf("worker: %v", err)
+	}
 
 	go w.Run(context.Background())
 

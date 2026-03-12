@@ -20,7 +20,22 @@ type Worker struct {
 	pollInterval time.Duration
 }
 
-func New(cfg config.Config, s *store.Store, logger *log.Logger) *Worker {
+func New(cfg config.Config, s *store.Store, logger *log.Logger) (*Worker, error) {
+	ext, timeout, err := buildExtractor(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Worker{
+		store:        s,
+		scraper:      scraper.New(timeout),
+		extractor:    ext,
+		logger:       logger,
+		pollInterval: 2 * time.Second,
+	}, nil
+}
+
+func buildExtractor(cfg config.Config, logger *log.Logger) (extractor.Extractor, time.Duration, error) {
 	var (
 		ext     extractor.Extractor
 		timeout time.Duration
@@ -46,14 +61,15 @@ func New(cfg config.Config, s *store.Store, logger *log.Logger) *Worker {
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	ext = extractor.NewJSONLDExtractor(ext, logger)
-	return &Worker{
-		store:        s,
-		scraper:      scraper.New(timeout),
-		extractor:    ext,
-		logger:       logger,
-		pollInterval: 2 * time.Second,
+
+	if cfg.LLMOnlyExtraction {
+		if ext == nil {
+			return nil, 0, fmt.Errorf("LLM_ONLY_EXTRACTION requires a configured %s extractor with a valid API key", cfg.Extractor)
+		}
+		return ext, timeout, nil
 	}
+
+	return extractor.NewJSONLDExtractor(ext, logger), timeout, nil
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -103,10 +119,11 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 	}
 
 	normalizedRecipe, err := w.extractor.NormalizeRecipe(ctx, extractor.Input{
-		SourceURL: scrapeResult.SourceURL,
-		JSONLD:    scrapeResult.JSONLD,
-		Text:      scrapeResult.Text,
-		Links:     scrapeResult.Links,
+		SourceURL:   scrapeResult.SourceURL,
+		JSONLD:      scrapeResult.JSONLD,
+		Text:        scrapeResult.Text,
+		Links:       scrapeResult.Links,
+		Ingredients: scrapeResult.Ingredients,
 	})
 	if err != nil {
 		return fmt.Errorf("normalize recipe: %w", err)

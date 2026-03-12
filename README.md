@@ -2,14 +2,14 @@
 
 [![Publish Docker image](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml)
 
-A web app that scrapes a recipe URL, extracts it, and saves it to a searchable library. Paste a URL, click Extract, and the backend fetches the page, parses structured data (JSON-LD), and falls back to an AI model when needed to produce a clean structured recipe.
+A web app that scrapes a recipe URL, extracts it, and saves it to a searchable library. Paste a URL, click Extract, and the backend fetches the page, parses structured data (JSON-LD), and falls back to an AI model when needed to produce a clean structured recipe. You can also configure it to skip JSON-LD entirely and run LLM-only extraction.
 
 Most recipe websites bury ingredients and instructions inside walls of ads, pop-ups, and life stories. Recipe Extractor strips all of that away. You get just the recipe, stored in a consistent structure you actually own, with no account required and no dependency on the original site staying online.
 
 ## How It Works
 
 1. **Scraper** - fetches the target page and pulls out JSON-LD structured data and visible plaintext
-2. **Extractor** - parses Schema.org JSON-LD structured data directly; falls back to an LLM (Anthropic or OpenAI) when JSON-LD is absent or incomplete
+2. **Extractor** - parses Schema.org JSON-LD structured data directly by default; falls back to an LLM (Anthropic or OpenAI) when JSON-LD is absent or incomplete, or can be configured to run LLM-only
 3. **Worker** - a background goroutine polls the database for queued extraction jobs and processes them asynchronously
 4. **API** - a Go/chi REST API serves recipe data and exposes extraction status
 5. **Frontend** - a React + Mantine SPA polls for extraction status and displays the recipe library
@@ -26,7 +26,7 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 
 ## Quickstart
 
-**Requires:** [Docker](https://docs.docker.com/get-docker/). An [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key is optional — recipes are extracted from structured data (JSON-LD) automatically, and the LLM is only used as a fallback for sites that don't publish it.
+**Requires:** [Docker](https://docs.docker.com/get-docker/). An [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key is optional by default - recipes are extracted from structured data (JSON-LD) automatically, and the LLM is only used as a fallback unless `LLM_ONLY_EXTRACTION=true`.
 
 ### No-clone install (recommended)
 
@@ -34,7 +34,7 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 mkdir recipe-extractor && cd recipe-extractor
 curl -o compose.yml https://raw.githubusercontent.com/jsness/recipe-extractor/main/compose.yml
 curl -o .env https://raw.githubusercontent.com/jsness/recipe-extractor/main/.env.example
-nano .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY
+nano .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
 docker compose up -d
 ```
 
@@ -45,7 +45,7 @@ Open **http://localhost:8080**. Data persists in a Docker volume across restarts
 ```bash
 git clone https://github.com/jsness/recipe-extractor
 cd recipe-extractor
-cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY
+cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
 docker compose build && docker compose up -d
 ```
 
@@ -56,7 +56,7 @@ Open **http://localhost:8080**.
 If you want to work on the code with hot-reloading:
 
 ```powershell
-cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY
+cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
 .\scripts\dev.ps1
 ```
 
@@ -64,7 +64,7 @@ The Go server runs on `:8080` and the Vite dev server runs on `:5173` (proxies `
 
 ## Using an Existing PostgreSQL Instance
 
-If you already have a PostgreSQL instance running, set `DATABASE_URL` in your `.env` to point at it and start only the app service — skipping the bundled postgres container entirely:
+If you already have a PostgreSQL instance running, set `DATABASE_URL` in your `.env` to point at it and start only the app service - skipping the bundled postgres container entirely:
 
 ```bash
 # .env
@@ -92,7 +92,7 @@ Your Tailscale IP is shown in the Tailscale app or via `tailscale ip -4`. No por
 - [Go 1.24+](https://go.dev/dl/)
 - [Node.js 18+](https://nodejs.org/) and npm
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- An API key for either Anthropic or OpenAI _(optional — only needed for LLM fallback)_
+- An API key for either Anthropic or OpenAI _(optional by default; required if `LLM_ONLY_EXTRACTION=true`)_
 
 ## Documentation
 

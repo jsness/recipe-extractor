@@ -3,10 +3,11 @@ package extractor
 import "context"
 
 type Input struct {
-	SourceURL string
-	JSONLD    []string
-	Text      string
-	Links     []string // "link text [url]" annotations extracted from every <a> in the page
+	SourceURL   string
+	JSONLD      []string
+	Text        string
+	Links       []string // "link text [url]" annotations extracted from every <a> in the page
+	Ingredients []IngredientGroup
 }
 
 type IngredientGroup struct {
