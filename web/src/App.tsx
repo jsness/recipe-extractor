@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Container, Stack, Text, Title } from "@mantine/core";
+import { Alert, Anchor, Container, Group, Stack, Text, Title } from "@mantine/core";
 import { CreateRecipeResponse, ExtractionStatusResponse, Recipe, RecipeSummary } from "./types";
 import { ExtractForm } from "./components/ExtractForm";
 import { ExtractionCard } from "./components/ExtractionCard";
 import { RecipeList } from "./components/RecipeList";
 import { RecipeDetail } from "./components/RecipeDetail";
+import GithubLogo from "./icons/GithubLogo";
 
 export const App = () => {
   const [url, setURL] = useState("");
@@ -27,7 +28,7 @@ export const App = () => {
   };
 
   useEffect(() => {
-    loadRecipes().catch(() => {});
+    loadRecipes().catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export const App = () => {
         try {
           const body = await res.json();
           if (body.error) message = body.error;
-        } catch {}
+        } catch { }
         throw new Error(message);
       }
 
@@ -152,7 +153,12 @@ export const App = () => {
           <Text c="dimmed">Paste a recipe URL to extract and save it.</Text>
         </div>
 
-        <ExtractForm url={url} setURL={setURL} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        <ExtractForm
+          url={url}
+          setURL={setURL}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+        />
 
         {submitError && (
           <Alert color="red" title="Error" withCloseButton onClose={() => setSubmitError("")}>
@@ -173,9 +179,24 @@ export const App = () => {
           />
         ) : (
           recipes.length > 0 && (
-            <RecipeList recipes={recipes} isLoadingRecipe={isLoadingRecipe} onView={handleViewRecipe} newRecipeId={newRecipeId} />
+            <RecipeList
+              recipes={recipes}
+              isLoadingRecipe={isLoadingRecipe}
+              onView={handleViewRecipe}
+              newRecipeId={newRecipeId}
+            />
           )
         )}
+
+        <Group justify="center">
+          <Anchor
+            href="https://github.com/jsness/recipe-extractor"
+            target="_blank"
+            c="dimmed"
+          >
+            <GithubLogo />
+          </Anchor>
+        </Group>
       </Stack>
     </Container>
   );
