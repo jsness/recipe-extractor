@@ -10,21 +10,23 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
 
-	"recipe-extractor/server/internal/config"
+	"recipe-extractor/server/core"
 	"recipe-extractor/server/internal/frontend"
-	"recipe-extractor/server/store"
 )
 
+type Config struct {
+	FrontendDevProxyURL string
+}
+
 type Handler struct {
-	cfg    config.Config
-	store  *store.Store
+	cfg    Config
+	app    *core.App
 	logger *log.Logger
 }
 
-func NewHandler(cfg config.Config, s *store.Store, logger *log.Logger) *Handler {
-	return &Handler{cfg: cfg, store: s, logger: logger}
+func NewHandler(cfg Config, app *core.App, logger *log.Logger) *Handler {
+	return &Handler{cfg: cfg, app: app, logger: logger}
 }
 
 func (h *Handler) Routes() http.Handler {
@@ -100,23 +102,16 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing, err := h.store.GetRecipeExtractionBySourceURL(r.Context(), req.URL)
+	extraction, err := h.app.CreateRecipeExtraction(r.Context(), req.URL)
 	if err != nil {
-		h.logger.Printf("lookup extraction by url: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if existing != nil && (existing.Status == "done" || existing.Status == "queued" || existing.Status == "extracting") {
-		msg := "This URL has already been extracted."
-		if existing.Status == "queued" || existing.Status == "extracting" {
-			msg = "This URL is already being extracted."
+		if errors.Is(err, core.ErrRecipeAlreadyExtracted) || errors.Is(err, core.ErrRecipeExtractionInProgress) {
+			msg := "This URL has already been extracted."
+			if errors.Is(err, core.ErrRecipeExtractionInProgress) {
+				msg = "This URL is already being extracted."
+			}
+			writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
+			return
 		}
-		writeJSON(w, http.StatusConflict, map[string]string{"error": msg})
-		return
-	}
-
-	extraction, err := h.store.CreateRecipeExtraction(r.Context(), req.URL)
-	if err != nil {
 		h.logger.Printf("create extraction: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -129,7 +124,7 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
-	recipes, err := h.store.ListRecipes(r.Context())
+	recipes, err := h.app.ListRecipes(r.Context())
 	if err != nil {
 		h.logger.Printf("list recipes: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -151,9 +146,9 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipe, err := h.store.GetRecipeByID(r.Context(), id)
+	detail, err := h.app.GetRecipe(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if core.IsNotFound(err) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -162,14 +157,7 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	related, err := h.store.GetRelatedRecipes(r.Context(), id)
-	if err != nil {
-		h.logger.Printf("get related recipes %s: %v", id, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, newRecipeResponse(recipe, related))
+	writeJSON(w, http.StatusOK, newRecipeResponse(detail.Recipe, detail.RelatedRecipes))
 }
 
 func (h *Handler) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +167,7 @@ func (h *Handler) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleted, err := h.store.DeleteRecipe(r.Context(), id)
+	deleted, err := h.app.DeleteRecipe(r.Context(), id)
 	if err != nil {
 		h.logger.Printf("delete recipe %s: %v", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -200,9 +188,9 @@ func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	extraction, err := h.store.GetRecipeExtractionByID(r.Context(), id)
+	extraction, err := h.app.GetRecipeExtraction(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if core.IsNotFound(err) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

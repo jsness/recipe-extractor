@@ -102,4 +102,5 @@ Your Tailscale IP is shown in the Tailscale app or via `tailscale ip -4`. No por
 |---|---|
 | [API Reference](docs/api-reference.md) | All endpoints, request/response shapes, and curl examples |
 | [Environment Variables](docs/environment-variables.md) | Full reference for every config variable and its default |
+| [Go Module Integration](docs/go-module-integration.md) | Import `recipe-extractor` into another Go app and mount or call it directly |
 | [Utility Scripts](docs/utility-scripts.md) | PowerShell helper scripts for local development |
