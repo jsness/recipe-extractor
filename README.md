@@ -62,6 +62,8 @@ cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set
 
 The Go server runs on `:8080` and the Vite dev server runs on `:5173` (proxies `/api/*` to the backend automatically).
 
+`.\scripts\dev.ps1` also sets `FRONTEND_DEV_PROXY_URL=http://localhost:5173` for the local Go server process, so you can open the app at **http://localhost:8080** while still using Vite hot reload behind the scenes.
+
 ## Using an Existing PostgreSQL Instance
 
 If you already have a PostgreSQL instance running, set `DATABASE_URL` in your `.env` to point at it and start only the app service - skipping the bundled postgres container entirely:

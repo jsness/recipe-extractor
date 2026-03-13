@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -41,6 +43,17 @@ func (h *Handler) Routes() http.Handler {
 		r.Get("/recipe-extractions/{id}", h.handleGetRecipeExtraction)
 	})
 
+	if h.cfg.FrontendDevProxyURL != "" {
+		proxy, err := newFrontendDevProxy(h.cfg.FrontendDevProxyURL)
+		if err != nil {
+			h.logger.Printf("frontend dev proxy disabled: %v", err)
+		} else {
+			h.logger.Printf("proxying frontend requests to %s", h.cfg.FrontendDevProxyURL)
+			r.Handle("/*", proxy)
+			return r
+		}
+	}
+
 	// Serve embedded frontend (SPA). Falls back to index.html for client-side routing.
 	// Skipped gracefully if no frontend is embedded (local dev uses Vite on :5173).
 	if _, err := frontend.FS.Open("dist/index.html"); err == nil {
@@ -59,6 +72,25 @@ func (h *Handler) Routes() http.Handler {
 	}
 
 	return r
+}
+
+func newFrontendDevProxy(rawURL string) (http.Handler, error) {
+	target, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Host = target.Host
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		http.Error(w, "frontend dev server unavailable", http.StatusBadGateway)
+	}
+
+	return proxy, nil
 }
 
 func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ Copy `.env.example` to `.env` and set values as needed.
 |---|---|---|
 | `HTTP_ADDR` | `:8080` | Address the Go server listens on |
 | `DATABASE_URL` | `postgres://postgres:postgres@localhost:5433/recipes?sslmode=disable` | PostgreSQL connection string |
+| `FRONTEND_DEV_PROXY_URL` | `` | Optional dev-only frontend proxy target, such as `http://localhost:5173` |
 | `EXTRACTOR` | `openai` | LLM backend to use when the app needs an LLM: `anthropic` or `openai` |
 | `LLM_ONLY_EXTRACTION` | `false` | When `true`, skip JSON-LD and always use the configured LLM extractor; requires a valid API key for the selected provider |
 | `ANTHROPIC_API_KEY` | _(optional)_ | Anthropic API key; if unset, Anthropic cannot be used for fallback or LLM-only extraction |

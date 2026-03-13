@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	HTTPAddr                string
+	FrontendDevProxyURL     string
 	DatabaseURL             string
 	Extractor               string
 	LLMOnlyExtraction       bool
@@ -26,6 +27,7 @@ func LoadFromEnv() Config {
 	db := getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/recipes?sslmode=disable")
 	return Config{
 		HTTPAddr:                addr,
+		FrontendDevProxyURL:     getenv("FRONTEND_DEV_PROXY_URL", ""),
 		DatabaseURL:             db,
 		Extractor:               getenv("EXTRACTOR", "openai"),
 		LLMOnlyExtraction:       getenvBool("LLM_ONLY_EXTRACTION", false),
