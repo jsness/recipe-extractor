@@ -37,6 +37,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Post("/recipes", h.handleCreateRecipe)
 		r.Get("/recipes", h.handleListRecipes)
 		r.Get("/recipes/{id}", h.handleGetRecipe)
+		r.Delete("/recipes/{id}", h.handleDeleteRecipe)
 		r.Get("/recipe-extractions/{id}", h.handleGetRecipeExtraction)
 	})
 
@@ -137,6 +138,27 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, newRecipeResponse(recipe, related))
+}
+
+func (h *Handler) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	deleted, err := h.store.DeleteRecipe(r.Context(), id)
+	if err != nil {
+		h.logger.Printf("delete recipe %s: %v", id, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if !deleted {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Request) {

@@ -54,6 +54,20 @@ func (s *Store) ListRecipes(ctx context.Context) ([]RecipeSummary, error) {
 	return recipes, rows.Err()
 }
 
+func (s *Store) DeleteRecipe(ctx context.Context, id string) (bool, error) {
+	const q = `
+		DELETE FROM recipes
+		WHERE id = $1
+	`
+
+	result, err := s.Pool.Exec(ctx, q, id)
+	if err != nil {
+		return false, err
+	}
+
+	return result.RowsAffected() > 0, nil
+}
+
 func (s *Store) UpsertRecipe(ctx context.Context, input RecipeInput) (string, error) {
 	ingredientsJSON, instructionsJSON, timesJSON, linkedURLsJSON, err := marshalRecipeInput(input)
 	if err != nil {

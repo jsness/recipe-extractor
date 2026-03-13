@@ -8,6 +8,7 @@ All endpoints are under `/api/v1`.
 | `GET` | `/api/v1/recipe-extractions/{id}` | Poll extraction status. Status values: `queued`, `extracting`, `done`, `failed`. |
 | `GET` | `/api/v1/recipes` | List all saved recipes (id + title). |
 | `GET` | `/api/v1/recipes/{id}` | Get full recipe details. |
+| `DELETE` | `/api/v1/recipes/{id}` | Delete a saved recipe. Returns `204` on success and `404` if the recipe does not exist. |
 | `GET` | `/healthz` | Health check. |
 
 ## Example: Submit a URL

@@ -18,11 +18,16 @@ export const App = () => {
 
   const terminalStatuses = useMemo(() => new Set(["done", "failed"]), []);
 
+  const loadRecipes = async () => {
+    const res = await fetch("/api/v1/recipes");
+    if (!res.ok) {
+      throw new Error(`Failed to load recipes (${res.status})`);
+    }
+    setRecipes(await res.json() as RecipeSummary[]);
+  };
+
   useEffect(() => {
-    fetch("/api/v1/recipes")
-      .then((res) => res.json())
-      .then((data) => setRecipes(data as RecipeSummary[]))
-      .catch(() => {});
+    loadRecipes().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -39,11 +44,8 @@ export const App = () => {
         const body = (await res.json()) as ExtractionStatusResponse;
         setExtraction(body);
         if (body.status === "done" && body.recipe_id) {
-          const recipesRes = await fetch("/api/v1/recipes");
-          if (recipesRes.ok) {
-            setRecipes(await recipesRes.json() as RecipeSummary[]);
-            setNewRecipeId(body.recipe_id);
-          }
+          await loadRecipes();
+          setNewRecipeId(body.recipe_id);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown polling error";
@@ -118,6 +120,28 @@ export const App = () => {
     }
   };
 
+  const handleDeleteRecipe = async (id: string) => {
+    setSubmitError("");
+
+    try {
+      const res = await fetch(`/api/v1/recipes/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to delete recipe (${res.status})`);
+      }
+
+      setSelectedRecipe(null);
+      if (newRecipeId === id) {
+        setNewRecipeId(null);
+      }
+      await loadRecipes();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown delete error";
+      setSubmitError(message);
+    }
+  };
+
   const isPolling = extraction != null && !terminalStatuses.has(extraction.status);
 
   return (
@@ -141,7 +165,12 @@ export const App = () => {
         )}
 
         {selectedRecipe ? (
-          <RecipeDetail recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} onSelectRecipe={handleViewRecipe} />
+          <RecipeDetail
+            recipe={selectedRecipe}
+            onBack={() => setSelectedRecipe(null)}
+            onDelete={handleDeleteRecipe}
+            onSelectRecipe={handleViewRecipe}
+          />
         ) : (
           recipes.length > 0 && (
             <RecipeList recipes={recipes} isLoadingRecipe={isLoadingRecipe} onView={handleViewRecipe} newRecipeId={newRecipeId} />

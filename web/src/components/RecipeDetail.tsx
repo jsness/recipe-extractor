@@ -4,17 +4,32 @@ import { Recipe } from "../types";
 type RecipeDetailProps = {
   recipe: Recipe;
   onBack: () => void;
+  onDelete: (id: string) => Promise<void>;
   onSelectRecipe: (id: string) => void;
 };
 
-export const RecipeDetail = ({ recipe, onBack, onSelectRecipe }: RecipeDetailProps) => {
+export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: RecipeDetailProps) => {
   const timeEntries = recipe.times ? Object.entries(recipe.times) : [];
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(`Delete "${recipe.title}"? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    await onDelete(recipe.id);
+  };
 
   return (
     <Stack gap="lg">
-      <Button variant="subtle" size="sm" onClick={onBack} w="fit-content" px={0}>
-        ← Back to recipes
-      </Button>
+      <Group justify="space-between" align="center">
+        <Button variant="subtle" size="sm" onClick={onBack} w="fit-content" px={0}>
+          {"<- Back to recipes"}
+        </Button>
+        <Button color="red" variant="light" size="xs" onClick={() => void handleDelete()}>
+          Delete recipe
+        </Button>
+      </Group>
 
       <div>
         <Title order={2}>{recipe.title}</Title>
