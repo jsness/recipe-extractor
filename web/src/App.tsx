@@ -9,6 +9,7 @@ import GithubLogo from "./icons/GithubLogo";
 
 export const App = () => {
   const [url, setURL] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [extraction, setExtraction] = useState<ExtractionStatusResponse | null>(null);
@@ -18,6 +19,14 @@ export const App = () => {
   const [newRecipeId, setNewRecipeId] = useState<string | null>(null);
 
   const terminalStatuses = useMemo(() => new Set(["done", "failed"]), []);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredRecipes = useMemo(() => {
+    if (normalizedSearchQuery === "") {
+      return recipes;
+    }
+
+    return recipes.filter((recipe) => recipe.title.toLowerCase().includes(normalizedSearchQuery));
+  }, [normalizedSearchQuery, recipes]);
 
   const loadRecipes = async () => {
     const res = await fetch("/api/v1/recipes");
@@ -178,12 +187,14 @@ export const App = () => {
             onSelectRecipe={handleViewRecipe}
           />
         ) : (
-          recipes.length > 0 && (
+          (recipes.length > 0 || searchQuery.trim() !== "") && (
             <RecipeList
-              recipes={recipes}
+              recipes={filteredRecipes}
               isLoadingRecipe={isLoadingRecipe}
               onView={handleViewRecipe}
               newRecipeId={newRecipeId}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
             />
           )
         )}
