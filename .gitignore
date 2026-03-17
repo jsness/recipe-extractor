@@ -15,3 +15,5 @@ Thumbs.db
 
 # git-ignore directory
 git-ignore
+
+.idea/

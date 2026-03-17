@@ -8,15 +8,21 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/temoto/robotstxt"
 
 	"recipe-extractor/server/extractor"
 )
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
+const userAgent = "recipe-extractor/0.1 (+https://localhost)"
 
 type Scraper struct {
-	httpClient *http.Client
+	httpClient  *http.Client
+	robotsMu    sync.RWMutex
+	robotsCache map[string]*robotstxt.RobotsData
 }
 
 type Result struct {
@@ -30,16 +36,25 @@ type Result struct {
 
 func New(timeout time.Duration) *Scraper {
 	return &Scraper{
-		httpClient: &http.Client{Timeout: timeout},
+		httpClient:  &http.Client{Timeout: timeout},
+		robotsCache: make(map[string]*robotstxt.RobotsData),
 	}
 }
 
 func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
+	allowed, err := s.robotsAllowed(ctx, sourceURL)
+	if err != nil {
+		return Result{}, fmt.Errorf("robots.txt check: %w", err)
+	}
+	if !allowed {
+		return Result{}, fmt.Errorf("robots.txt disallows scraping %s", sourceURL)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sourceURL, nil)
 	if err != nil {
 		return Result{}, err
 	}
-	req.Header.Set("User-Agent", "recipe-extractor/0.1 (+https://localhost)")
+	req.Header.Set("User-Agent", userAgent)
 
 	res, err := s.httpClient.Do(req)
 	if err != nil {
