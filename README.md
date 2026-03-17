@@ -60,9 +60,18 @@ cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set
 .\scripts\dev.ps1
 ```
 
+### Local development (Linux/macOS)
+
+If you want to work on the code with hot-reloading:
+
+```bash
+cp .env.example .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
+./scripts/dev.sh
+```
+
 The Go server runs on `:8080` and the Vite dev server runs on `:5173` (proxies `/api/*` to the backend automatically).
 
-`.\scripts\dev.ps1` also sets `FRONTEND_DEV_PROXY_URL=http://localhost:5173` for the local Go server process, so you can open the app at **http://localhost:8080** while still using Vite hot reload behind the scenes.
+Both dev scripts also set `FRONTEND_DEV_PROXY_URL=http://localhost:5173` for the local Go server process, so you can open the app at **http://localhost:8080** while still using Vite hot reload behind the scenes.
 
 ## Using an Existing PostgreSQL Instance
 
