@@ -10,9 +10,19 @@ type createRecipeRequest struct {
 	URL string `json:"url"`
 }
 
+type createProfileRequest struct {
+	Name string `json:"name"`
+}
+
 type createRecipeResponse struct {
 	ExtractionID string `json:"extraction_id"`
 	Status       string `json:"status"`
+}
+
+type profileResponse struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type recipeSummaryResponse struct {
@@ -76,5 +86,13 @@ func newRecipeExtractionResponse(extraction store.RecipeExtraction) getRecipeExt
 		Status:       extraction.Status,
 		RecipeID:     extraction.RecipeID,
 		ErrorMessage: extraction.ErrorMessage,
+	}
+}
+
+func newProfileResponse(profile store.Profile) profileResponse {
+	return profileResponse{
+		ID:        profile.ID,
+		Name:      profile.Name,
+		CreatedAt: profile.CreatedAt,
 	}
 }

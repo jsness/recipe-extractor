@@ -38,6 +38,8 @@ func (h *Handler) Routes() http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/profiles", h.handleListProfiles)
+		r.Post("/profiles", h.handleCreateProfile)
 		r.Post("/recipes", h.handleCreateRecipe)
 		r.Get("/recipes", h.handleListRecipes)
 		r.Get("/recipes/{id}", h.handleGetRecipe)
@@ -96,13 +98,18 @@ func newFrontendDevProxy(rawURL string) (http.Handler, error) {
 }
 
 func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
+	profileID, ok := profileIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
 	var req createRecipeRequest
 	if err := decodeJSON(r, &req); err != nil || req.URL == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	extraction, err := h.app.CreateRecipeExtraction(r.Context(), req.URL)
+	extraction, err := h.app.CreateRecipeExtraction(r.Context(), profileID, req.URL)
 	if err != nil {
 		if errors.Is(err, core.ErrRecipeAlreadyExtracted) || errors.Is(err, core.ErrRecipeExtractionInProgress) {
 			msg := "This URL has already been extracted."
@@ -124,7 +131,12 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
-	recipes, err := h.app.ListRecipes(r.Context())
+	profileID, ok := profileIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
+	recipes, err := h.app.ListRecipes(r.Context(), profileID)
 	if err != nil {
 		h.logger.Printf("list recipes: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -140,13 +152,18 @@ func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
+	profileID, ok := profileIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	detail, err := h.app.GetRecipe(r.Context(), id)
+	detail, err := h.app.GetRecipe(r.Context(), profileID, id)
 	if err != nil {
 		if core.IsNotFound(err) {
 			w.WriteHeader(http.StatusNotFound)
@@ -161,13 +178,18 @@ func (h *Handler) handleGetRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	profileID, ok := profileIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	deleted, err := h.app.DeleteRecipe(r.Context(), id)
+	deleted, err := h.app.DeleteRecipe(r.Context(), profileID, id)
 	if err != nil {
 		h.logger.Printf("delete recipe %s: %v", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -182,13 +204,18 @@ func (h *Handler) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Request) {
+	profileID, ok := profileIDFromRequest(w, r)
+	if !ok {
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	extraction, err := h.app.GetRecipeExtraction(r.Context(), id)
+	extraction, err := h.app.GetRecipeExtraction(r.Context(), profileID, id)
 	if err != nil {
 		if core.IsNotFound(err) {
 			w.WriteHeader(http.StatusNotFound)
@@ -200,4 +227,52 @@ func (h *Handler) handleGetRecipeExtraction(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeJSON(w, http.StatusOK, newRecipeExtractionResponse(extraction))
+}
+
+func (h *Handler) handleListProfiles(w http.ResponseWriter, r *http.Request) {
+	profiles, err := h.app.ListProfiles(r.Context())
+	if err != nil {
+		h.logger.Printf("list profiles: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]profileResponse, len(profiles))
+	for i, profile := range profiles {
+		resp[i] = newProfileResponse(profile)
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
+	var req createProfileRequest
+	if err := decodeJSON(r, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Profile name is required."})
+		return
+	}
+
+	profile, err := h.app.CreateProfile(r.Context(), name)
+	if err != nil {
+		h.logger.Printf("create profile: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, newProfileResponse(profile))
+}
+
+func profileIDFromRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
+	profileID := strings.TrimSpace(r.Header.Get("X-Profile-Id"))
+	if profileID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "X-Profile-Id header is required."})
+		return "", false
+	}
+	return profileID, true
 }

@@ -3,6 +3,12 @@ export type CreateRecipeResponse = {
   status: string;
 };
 
+export type Profile = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
 export type ExtractionStatusResponse = {
   id: string;
   source_url: string;

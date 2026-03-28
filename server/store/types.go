@@ -2,8 +2,16 @@ package store
 
 import "time"
 
+type Profile struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type RecipeExtraction struct {
 	ID             string
+	ProfileID      string
 	SourceURL      string
 	Status         string
 	RecipeID       *string

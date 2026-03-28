@@ -134,7 +134,7 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 		ingredients[i] = store.IngredientGroup{Group: g.Group, Items: g.Items}
 	}
 
-	recipeID, err := w.store.UpsertRecipe(ctx, store.RecipeInput{
+	recipeID, err := w.store.UpsertRecipe(ctx, extraction.ProfileID, store.RecipeInput{
 		Title:            normalizedRecipe.Title,
 		Ingredients:      ingredients,
 		Instructions:     normalizedRecipe.Instructions,
@@ -149,13 +149,13 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 	}
 
 	for _, linkedURL := range normalizedRecipe.LinkedRecipeURLs {
-		if err := w.store.QueueLinkedRecipeExtraction(ctx, recipeID, linkedURL); err != nil {
+		if err := w.store.QueueLinkedRecipeExtraction(ctx, extraction.ProfileID, recipeID, linkedURL); err != nil {
 			w.logger.Printf("queue linked recipe url=%s: %v", linkedURL, err)
 		}
 	}
 
 	if extraction.ParentRecipeID != nil {
-		if err := w.store.CreateRecipeRelationship(ctx, *extraction.ParentRecipeID, recipeID); err != nil {
+		if err := w.store.CreateRecipeRelationship(ctx, extraction.ProfileID, *extraction.ParentRecipeID, recipeID); err != nil {
 			w.logger.Printf("create recipe relationship parent=%s child=%s: %v", *extraction.ParentRecipeID, recipeID, err)
 		}
 	}

@@ -91,8 +91,16 @@ func (a *App) RunWorker(ctx context.Context) {
 	a.worker.Run(ctx)
 }
 
-func (a *App) CreateRecipeExtraction(ctx context.Context, sourceURL string) (store.RecipeExtraction, error) {
-	existing, err := a.store.GetRecipeExtractionBySourceURL(ctx, sourceURL)
+func (a *App) ListProfiles(ctx context.Context) ([]store.Profile, error) {
+	return a.store.ListProfiles(ctx)
+}
+
+func (a *App) CreateProfile(ctx context.Context, name string) (store.Profile, error) {
+	return a.store.CreateProfile(ctx, name)
+}
+
+func (a *App) CreateRecipeExtraction(ctx context.Context, profileID, sourceURL string) (store.RecipeExtraction, error) {
+	existing, err := a.store.GetRecipeExtractionBySourceURL(ctx, profileID, sourceURL)
 	if err != nil {
 		return store.RecipeExtraction{}, err
 	}
@@ -105,20 +113,20 @@ func (a *App) CreateRecipeExtraction(ctx context.Context, sourceURL string) (sto
 		}
 	}
 
-	return a.store.CreateRecipeExtraction(ctx, sourceURL)
+	return a.store.CreateRecipeExtraction(ctx, profileID, sourceURL)
 }
 
-func (a *App) ListRecipes(ctx context.Context) ([]store.RecipeSummary, error) {
-	return a.store.ListRecipes(ctx)
+func (a *App) ListRecipes(ctx context.Context, profileID string) ([]store.RecipeSummary, error) {
+	return a.store.ListRecipes(ctx, profileID)
 }
 
-func (a *App) GetRecipe(ctx context.Context, id string) (RecipeDetail, error) {
-	recipe, err := a.store.GetRecipeByID(ctx, id)
+func (a *App) GetRecipe(ctx context.Context, profileID, id string) (RecipeDetail, error) {
+	recipe, err := a.store.GetRecipeByID(ctx, profileID, id)
 	if err != nil {
 		return RecipeDetail{}, err
 	}
 
-	related, err := a.store.GetRelatedRecipes(ctx, id)
+	related, err := a.store.GetRelatedRecipes(ctx, profileID, id)
 	if err != nil {
 		return RecipeDetail{}, err
 	}
@@ -129,12 +137,12 @@ func (a *App) GetRecipe(ctx context.Context, id string) (RecipeDetail, error) {
 	}, nil
 }
 
-func (a *App) GetRecipeExtraction(ctx context.Context, id string) (store.RecipeExtraction, error) {
-	return a.store.GetRecipeExtractionByID(ctx, id)
+func (a *App) GetRecipeExtraction(ctx context.Context, profileID, id string) (store.RecipeExtraction, error) {
+	return a.store.GetRecipeExtractionByID(ctx, profileID, id)
 }
 
-func (a *App) DeleteRecipe(ctx context.Context, id string) (bool, error) {
-	return a.store.DeleteRecipe(ctx, id)
+func (a *App) DeleteRecipe(ctx context.Context, profileID, id string) (bool, error) {
+	return a.store.DeleteRecipe(ctx, profileID, id)
 }
 
 func IsNotFound(err error) bool {

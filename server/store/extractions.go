@@ -8,14 +8,20 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Store) CreateRecipeExtraction(ctx context.Context, sourceURL string) (RecipeExtraction, error) {
+func (s *Store) CreateRecipeExtraction(ctx context.Context, profileID, sourceURL string) (RecipeExtraction, error) {
 	const q = `
-		INSERT INTO recipe_extractions (source_url, status)
-		VALUES ($1, 'queued')
-		ON CONFLICT (source_url) DO UPDATE
-		SET source_url = EXCLUDED.source_url
+		INSERT INTO recipe_extractions (profile_id, source_url, status)
+		VALUES ($1, $2, 'queued')
+		ON CONFLICT (profile_id, source_url) DO UPDATE
+		SET
+			status = EXCLUDED.status,
+			recipe_id = NULL,
+			error_message = NULL,
+			parent_recipe_id = NULL,
+			updated_at = now()
 		RETURNING
 			id::text,
+			profile_id::text,
 			source_url,
 			status,
 			recipe_id::text,
@@ -27,8 +33,9 @@ func (s *Store) CreateRecipeExtraction(ctx context.Context, sourceURL string) (R
 	var extraction RecipeExtraction
 	var recipeID sql.NullString
 	var errorMessage sql.NullString
-	err := s.Pool.QueryRow(ctx, q, sourceURL).Scan(
+	err := s.Pool.QueryRow(ctx, q, profileID, sourceURL).Scan(
 		&extraction.ID,
+		&extraction.ProfileID,
 		&extraction.SourceURL,
 		&extraction.Status,
 		&recipeID,
@@ -41,10 +48,11 @@ func (s *Store) CreateRecipeExtraction(ctx context.Context, sourceURL string) (R
 	return extraction, err
 }
 
-func (s *Store) GetRecipeExtractionBySourceURL(ctx context.Context, sourceURL string) (*RecipeExtraction, error) {
+func (s *Store) GetRecipeExtractionBySourceURL(ctx context.Context, profileID, sourceURL string) (*RecipeExtraction, error) {
 	const q = `
 		SELECT
 			id::text,
+			profile_id::text,
 			source_url,
 			status,
 			recipe_id::text,
@@ -52,14 +60,15 @@ func (s *Store) GetRecipeExtractionBySourceURL(ctx context.Context, sourceURL st
 			created_at,
 			updated_at
 		FROM recipe_extractions
-		WHERE source_url = $1
+		WHERE profile_id = $1 AND source_url = $2
 	`
 
 	var extraction RecipeExtraction
 	var recipeID sql.NullString
 	var errorMessage sql.NullString
-	err := s.Pool.QueryRow(ctx, q, sourceURL).Scan(
+	err := s.Pool.QueryRow(ctx, q, profileID, sourceURL).Scan(
 		&extraction.ID,
+		&extraction.ProfileID,
 		&extraction.SourceURL,
 		&extraction.Status,
 		&recipeID,
@@ -78,10 +87,11 @@ func (s *Store) GetRecipeExtractionBySourceURL(ctx context.Context, sourceURL st
 	return &extraction, nil
 }
 
-func (s *Store) GetRecipeExtractionByID(ctx context.Context, id string) (RecipeExtraction, error) {
+func (s *Store) GetRecipeExtractionByID(ctx context.Context, profileID, id string) (RecipeExtraction, error) {
 	const q = `
 		SELECT
 			id::text,
+			profile_id::text,
 			source_url,
 			status,
 			recipe_id::text,
@@ -89,14 +99,15 @@ func (s *Store) GetRecipeExtractionByID(ctx context.Context, id string) (RecipeE
 			created_at,
 			updated_at
 		FROM recipe_extractions
-		WHERE id = $1
+		WHERE profile_id = $1 AND id = $2
 	`
 
 	var extraction RecipeExtraction
 	var recipeID sql.NullString
 	var errorMessage sql.NullString
-	err := s.Pool.QueryRow(ctx, q, id).Scan(
+	err := s.Pool.QueryRow(ctx, q, profileID, id).Scan(
 		&extraction.ID,
+		&extraction.ProfileID,
 		&extraction.SourceURL,
 		&extraction.Status,
 		&recipeID,
@@ -142,6 +153,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 		WHERE id = $1
 		RETURNING
 			id::text,
+			profile_id::text,
 			source_url,
 			status,
 			recipe_id::text,
@@ -151,6 +163,7 @@ func (s *Store) ClaimNextQueuedRecipeExtraction(ctx context.Context) (*RecipeExt
 			updated_at
 	`, id).Scan(
 		&extraction.ID,
+		&extraction.ProfileID,
 		&extraction.SourceURL,
 		&extraction.Status,
 		&recipeID,
