@@ -31,7 +31,7 @@ export const RecipeApp = () => {
   const [extraction, setExtraction] = useState<ExtractionStatusResponse | null>(null);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
+  const [loadingRecipeId, setLoadingRecipeId] = useState<string | null>(null);
   const [newRecipeId, setNewRecipeId] = useState<string | null>(null);
 
   const terminalStatuses = useMemo(() => new Set(["done", "failed"]), []);
@@ -207,7 +207,7 @@ export const RecipeApp = () => {
       return;
     }
 
-    setIsLoadingRecipe(true);
+    setLoadingRecipeId(id);
     try {
       const res = await fetch(`/api/v1/recipes/${id}`, {
         headers: profileHeaders(activeProfileId),
@@ -219,7 +219,7 @@ export const RecipeApp = () => {
     } catch {
       // TODO: surface error
     } finally {
-      setIsLoadingRecipe(false);
+      setLoadingRecipeId(null);
     }
   };
 
@@ -373,7 +373,7 @@ export const RecipeApp = () => {
           (recipes.length > 0 || searchQuery.trim() !== "") && (
             <RecipeList
               recipes={filteredRecipes}
-              isLoadingRecipe={isLoadingRecipe}
+              loadingRecipeId={loadingRecipeId}
               onView={handleViewRecipe}
               newRecipeId={newRecipeId}
               searchQuery={searchQuery}

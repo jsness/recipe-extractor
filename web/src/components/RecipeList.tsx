@@ -3,7 +3,7 @@ import { RecipeSummary } from "../types";
 
 type RecipeListProps = {
   recipes: RecipeSummary[];
-  isLoadingRecipe: boolean;
+  loadingRecipeId: string | null;
   onView: (id: string) => void;
   newRecipeId?: string | null;
   searchQuery: string;
@@ -12,7 +12,7 @@ type RecipeListProps = {
 
 export const RecipeList = ({
   recipes,
-  isLoadingRecipe,
+  loadingRecipeId,
   onView,
   newRecipeId,
   searchQuery,
@@ -43,7 +43,7 @@ export const RecipeList = ({
             size="xs"
             variant="light"
             style={{ flexShrink: 0 }}
-            loading={isLoadingRecipe}
+            loading={loadingRecipeId === recipe.id}
             onClick={() => onView(recipe.id)}
           >
             View

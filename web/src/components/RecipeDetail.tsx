@@ -1,5 +1,6 @@
 import { Anchor, Badge, Button, Divider, Group, List, Stack, Text, Title } from "@mantine/core";
 import { Recipe } from "../types";
+import { printRecipe } from "../utils/printRecipe";
 
 type RecipeDetailProps = {
   recipe: Recipe;
@@ -26,8 +27,8 @@ export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: Recip
         <Button variant="subtle" size="sm" onClick={onBack} w="fit-content" px={0}>
           {"<- Back to recipes"}
         </Button>
-        <Button color="red" variant="light" size="xs" onClick={() => void handleDelete()}>
-          Delete recipe
+        <Button variant="light" size="xs" onClick={() => printRecipe(recipe)}>
+          Print
         </Button>
       </Group>
 
@@ -135,6 +136,14 @@ export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: Recip
           </div>
         </>
       )}
+
+      <Divider />
+
+      <Group justify="flex-end">
+        <Button color="red" variant="light" size="xs" onClick={() => void handleDelete()}>
+          Delete recipe
+        </Button>
+      </Group>
     </Stack>
   );
 };
