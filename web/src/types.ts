@@ -15,6 +15,12 @@ export type ExtractionStatusResponse = {
   status: string;
   recipe_id?: string;
   error_message?: string;
+  can_try_archived_source?: boolean;
+};
+
+export type ArchivedSnapshotResponse = {
+  archived_url: string;
+  timestamp: string;
 };
 
 export type RecipeSummary = {

@@ -2,10 +2,12 @@ package scraper
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -18,6 +20,7 @@ import (
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
 const userAgent = "recipe-extractor/0.1 (+https://localhost)"
+const blockedAccessMessage = "site blocked automated access and requires a browser challenge"
 
 type Scraper struct {
 	httpClient  *http.Client
@@ -32,6 +35,25 @@ type Result struct {
 	Text        string
 	Links       []string // deduplicated "link text [url]" annotations from every <a> in the page
 	Ingredients []extractor.IngredientGroup
+}
+
+type FetchErrorKind string
+
+const (
+	FetchErrorKindUnexpectedStatus FetchErrorKind = "unexpected_status"
+	FetchErrorKindBlockedAccess    FetchErrorKind = "blocked_access"
+)
+
+type FetchError struct {
+	Kind       FetchErrorKind
+	StatusCode int
+}
+
+func (e *FetchError) Error() string {
+	if e.Kind == FetchErrorKindBlockedAccess {
+		return fmt.Sprintf("%s (HTTP %d)", blockedAccessMessage, e.StatusCode)
+	}
+	return fmt.Sprintf("unexpected status code: %d", e.StatusCode)
 }
 
 func New(timeout time.Duration) *Scraper {
@@ -62,10 +84,6 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return Result{}, fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-
 	limited := io.LimitReader(res.Body, maxBodyBytes)
 	bodyBytes, err := io.ReadAll(limited)
 	if err != nil {
@@ -73,6 +91,13 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	}
 
 	html := string(bodyBytes)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		if isBlockedAccessResponse(res, html) {
+			return Result{}, &FetchError{Kind: FetchErrorKindBlockedAccess, StatusCode: res.StatusCode}
+		}
+		return Result{}, &FetchError{Kind: FetchErrorKindUnexpectedStatus, StatusCode: res.StatusCode}
+	}
+
 	jsonld := extractJSONLD(html)
 	text := collapseWhitespace(stripTags(annotateLinks(html)))
 	if len(text) > 20000 {
@@ -89,6 +114,38 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 		Links:       links,
 		Ingredients: ingredients,
 	}, nil
+}
+
+func IsBlockedAccessError(err error) bool {
+	var fetchErr *FetchError
+	return errors.As(err, &fetchErr) && fetchErr.Kind == FetchErrorKindBlockedAccess
+}
+
+func SupportsArchivedFallback(errorMessage string) bool {
+	return strings.Contains(errorMessage, blockedAccessMessage)
+}
+
+func isBlockedAccessResponse(res *http.Response, body string) bool {
+	if strings.EqualFold(strings.TrimSpace(res.Header.Get("cf-mitigated")), "challenge") {
+		return true
+	}
+
+	if res.StatusCode != http.StatusForbidden && res.StatusCode != http.StatusTooManyRequests {
+		return false
+	}
+
+	lowerBody := strings.ToLower(body)
+	return strings.Contains(lowerBody, "enable javascript and cookies to continue") ||
+		strings.Contains(lowerBody, "just a moment") ||
+		strings.Contains(lowerBody, "captcha")
+}
+
+func IsArchivedURL(rawURL string) bool {
+	parsed, err := neturl.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(parsed.Hostname(), "web.archive.org")
 }
 
 var jsonLDRegex = regexp.MustCompile(`(?is)<script[^>]*type=["']application/ld\+json["'][^>]*>(.*?)</script>`)

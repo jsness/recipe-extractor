@@ -1,12 +1,19 @@
-import { Alert, Badge, Card, Group, Loader, Stack, Text } from "@mantine/core";
+import { Alert, Badge, Button, Card, Group, Loader, Stack, Text } from "@mantine/core";
 import { ExtractionStatusResponse } from "../types";
 
 type ExtractionCardProps = {
   extraction: ExtractionStatusResponse;
   isPolling: boolean;
+  isTryingArchivedVersion?: boolean;
+  onTryArchivedVersion?: () => void;
 };
 
-export const ExtractionCard = ({ extraction, isPolling }: ExtractionCardProps) => (
+export const ExtractionCard = ({
+  extraction,
+  isPolling,
+  isTryingArchivedVersion = false,
+  onTryArchivedVersion,
+}: ExtractionCardProps) => (
   <Card withBorder radius="md" padding="md">
     <Stack gap="xs">
       <Group justify="space-between">
@@ -27,7 +34,24 @@ export const ExtractionCard = ({ extraction, isPolling }: ExtractionCardProps) =
       )}
       {extraction.error_message && (
         <Alert color="red" title="Failure">
-          {extraction.error_message}
+          <Stack gap="xs">
+            <Text size="sm">{extraction.error_message}</Text>
+            {extraction.can_try_archived_source && onTryArchivedVersion && (
+              <Group justify="space-between" align="center">
+                <Text size="sm" c="dimmed">
+                  This site may still be extractable from an archived copy.
+                </Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  loading={isTryingArchivedVersion}
+                  onClick={onTryArchivedVersion}
+                >
+                  Try archived version
+                </Button>
+              </Group>
+            )}
+          </Stack>
         </Alert>
       )}
       {isPolling && (

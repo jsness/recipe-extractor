@@ -40,6 +40,7 @@ func (h *Handler) Routes() http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/profiles", h.handleListProfiles)
 		r.Post("/profiles", h.handleCreateProfile)
+		r.Get("/archived-snapshot", h.handleGetArchivedSnapshot)
 		r.Post("/recipes", h.handleCreateRecipe)
 		r.Get("/recipes", h.handleListRecipes)
 		r.Get("/recipes/{id}", h.handleGetRecipe)
@@ -127,6 +128,34 @@ func (h *Handler) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, createRecipeResponse{
 		ExtractionID: extraction.ID,
 		Status:       extraction.Status,
+	})
+}
+
+func (h *Handler) handleGetArchivedSnapshot(w http.ResponseWriter, r *http.Request) {
+	sourceURL := strings.TrimSpace(r.URL.Query().Get("url"))
+	if sourceURL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "URL is required."})
+		return
+	}
+	if _, err := url.ParseRequestURI(sourceURL); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "URL must be valid."})
+		return
+	}
+
+	snapshot, err := h.app.FindArchivedSnapshot(r.Context(), sourceURL)
+	if err != nil {
+		h.logger.Printf("lookup archived snapshot for %s: %v", sourceURL, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if snapshot == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "No archived snapshot found for this URL."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, archivedSnapshotResponse{
+		ArchivedURL: snapshot.URL,
+		Timestamp:   snapshot.Timestamp,
 	})
 }
 

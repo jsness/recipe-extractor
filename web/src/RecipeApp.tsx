@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Anchor, Button, Container, Group, Stack, Text, Title } from "@mantine/core";
 import {
+  ArchivedSnapshotResponse,
   CreateRecipeResponse,
   ExtractionStatusResponse,
   Profile,
@@ -27,6 +28,7 @@ export const RecipeApp = () => {
   const [createProfileName, setCreateProfileName] = useState("");
   const [profileError, setProfileError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTryingArchivedVersion, setIsTryingArchivedVersion] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [extraction, setExtraction] = useState<ExtractionStatusResponse | null>(null);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
@@ -145,14 +147,12 @@ export const RecipeApp = () => {
   }, [activeProfileId]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
     if (!activeProfileId) {
       setSubmitError("Select a profile before extracting recipes.");
       return;
     }
-    setSubmitError("");
-    setExtraction(null);
-    setNewRecipeId(null);
+
+    event.preventDefault();
 
     let parsedURL: URL;
     try {
@@ -165,8 +165,25 @@ export const RecipeApp = () => {
       return;
     }
 
-    setIsSubmitting(true);
+    await submitExtraction(parsedURL.toString());
+  };
 
+  const submitExtraction = async (
+    sourceURL: string,
+    options?: { clearCurrentExtraction?: boolean },
+  ) => {
+    if (!activeProfileId) {
+      setSubmitError("Select a profile before extracting recipes.");
+      return;
+    }
+
+    const shouldClearCurrentExtraction = options?.clearCurrentExtraction ?? true;
+    setSubmitError("");
+    if (shouldClearCurrentExtraction) {
+      setExtraction(null);
+    }
+    setNewRecipeId(null);
+    setIsSubmitting(true);
     try {
       const res = await fetch("/api/v1/recipes", {
         method: "POST",
@@ -174,7 +191,7 @@ export const RecipeApp = () => {
           "Content-Type": "application/json",
           ...profileHeaders(activeProfileId),
         },
-        body: JSON.stringify({ url: parsedURL.toString() }),
+        body: JSON.stringify({ url: sourceURL }),
       });
 
       if (!res.ok) {
@@ -191,7 +208,7 @@ export const RecipeApp = () => {
       const body = (await res.json()) as CreateRecipeResponse;
       setExtraction({
         id: body.extraction_id,
-        source_url: parsedURL.toString(),
+        source_url: sourceURL,
         status: body.status,
       });
     } catch (error) {
@@ -199,6 +216,44 @@ export const RecipeApp = () => {
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleTryArchivedVersion = async () => {
+    if (!activeProfileId || !extraction?.source_url) {
+      return;
+    }
+
+    setSubmitError("");
+    setIsTryingArchivedVersion(true);
+
+    try {
+      const lookupURL = new URL("/api/v1/archived-snapshot", window.location.origin);
+      lookupURL.searchParams.set("url", extraction.source_url);
+
+      const res = await fetch(lookupURL.toString());
+      if (!res.ok) {
+        let message = `Archived snapshot lookup failed (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body.error) {
+            message = body.error;
+          }
+        } catch {
+          // ignore JSON parse failures for error handling
+        }
+        throw new Error(message);
+      }
+
+      const body = (await res.json()) as ArchivedSnapshotResponse;
+      await submitExtraction(body.archived_url, { clearCurrentExtraction: false });
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : "Unknown archived snapshot lookup error";
+      setSubmitError(message);
+    } finally {
+      setIsTryingArchivedVersion(false);
     }
   };
 
@@ -359,7 +414,12 @@ export const RecipeApp = () => {
         )}
 
         {extraction && (
-          <ExtractionCard extraction={extraction} isPolling={isPolling} />
+          <ExtractionCard
+            extraction={extraction}
+            isPolling={isPolling}
+            isTryingArchivedVersion={isTryingArchivedVersion}
+            onTryArchivedVersion={handleTryArchivedVersion}
+          />
         )}
 
         {activeProfileId && selectedRecipe ? (

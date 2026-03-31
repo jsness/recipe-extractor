@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,6 +13,7 @@ import (
 	"recipe-extractor/server/internal/db"
 	"recipe-extractor/server/migrations"
 	"recipe-extractor/server/store"
+	"recipe-extractor/server/wayback"
 	"recipe-extractor/server/worker"
 )
 
@@ -30,6 +32,7 @@ type App struct {
 	ownsPool bool
 	store    *store.Store
 	worker   *worker.Worker
+	wayback  *wayback.Client
 }
 
 func Open(ctx context.Context, cfg Config, logger *log.Logger) (*App, error) {
@@ -60,9 +63,10 @@ func New(pool *pgxpool.Pool, cfg Config, logger *log.Logger) (*App, error) {
 	}
 
 	return &App{
-		pool:   pool,
-		store:  s,
-		worker: w,
+		pool:    pool,
+		store:   s,
+		worker:  w,
+		wayback: wayback.New(10 * time.Second),
 	}, nil
 }
 
@@ -143,6 +147,10 @@ func (a *App) GetRecipeExtraction(ctx context.Context, profileID, id string) (st
 
 func (a *App) DeleteRecipe(ctx context.Context, profileID, id string) (bool, error) {
 	return a.store.DeleteRecipe(ctx, profileID, id)
+}
+
+func (a *App) FindArchivedSnapshot(ctx context.Context, sourceURL string) (*wayback.Snapshot, error) {
+	return a.wayback.Lookup(ctx, sourceURL)
 }
 
 func IsNotFound(err error) bool {

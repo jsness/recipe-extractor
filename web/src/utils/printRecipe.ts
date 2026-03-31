@@ -12,7 +12,7 @@ const buildPrintableRecipeHTML = (recipe: Recipe) => {
 
   const metadataHTML = [
     recipe.yield ? `<p><strong>Yield:</strong> ${escapeHTML(recipe.yield)}</p>` : "",
-    ...timeEntries.filter(([_, value]) => value).map(([key, value]) => (
+    ...timeEntries.filter(([, value]) => value).map(([key, value]) => (
       `<p><strong>${escapeHTML(key)}:</strong> ${escapeHTML(value)}</p>`
     )),
     `<p><strong>Source:</strong> ${escapeHTML(recipe.source_url)}</p>`,

@@ -3,6 +3,7 @@ package api
 import (
 	"time"
 
+	"recipe-extractor/server/scraper"
 	"recipe-extractor/server/store"
 )
 
@@ -50,11 +51,17 @@ type recipeResponse struct {
 }
 
 type getRecipeExtractionResponse struct {
-	ID           string  `json:"id"`
-	SourceURL    string  `json:"source_url"`
-	Status       string  `json:"status"`
-	RecipeID     *string `json:"recipe_id,omitempty"`
-	ErrorMessage *string `json:"error_message,omitempty"`
+	ID                   string  `json:"id"`
+	SourceURL            string  `json:"source_url"`
+	Status               string  `json:"status"`
+	RecipeID             *string `json:"recipe_id,omitempty"`
+	ErrorMessage         *string `json:"error_message,omitempty"`
+	CanTryArchivedSource bool    `json:"can_try_archived_source,omitempty"`
+}
+
+type archivedSnapshotResponse struct {
+	ArchivedURL string `json:"archived_url"`
+	Timestamp   string `json:"timestamp"`
 }
 
 func newRecipeResponse(recipe store.Recipe, related []store.RelatedRecipe) recipeResponse {
@@ -80,12 +87,18 @@ func newRecipeResponse(recipe store.Recipe, related []store.RelatedRecipe) recip
 }
 
 func newRecipeExtractionResponse(extraction store.RecipeExtraction) getRecipeExtractionResponse {
+	canTryArchivedSource := extraction.Status == "failed" &&
+		extraction.ErrorMessage != nil &&
+		scraper.SupportsArchivedFallback(*extraction.ErrorMessage) &&
+		!scraper.IsArchivedURL(extraction.SourceURL)
+
 	return getRecipeExtractionResponse{
-		ID:           extraction.ID,
-		SourceURL:    extraction.SourceURL,
-		Status:       extraction.Status,
-		RecipeID:     extraction.RecipeID,
-		ErrorMessage: extraction.ErrorMessage,
+		ID:                   extraction.ID,
+		SourceURL:            extraction.SourceURL,
+		Status:               extraction.Status,
+		RecipeID:             extraction.RecipeID,
+		ErrorMessage:         extraction.ErrorMessage,
+		CanTryArchivedSource: canTryArchivedSource,
 	}
 }
 

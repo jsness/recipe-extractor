@@ -2,7 +2,7 @@
 
 [![Publish Docker image](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/jsness/recipe-extractor/actions/workflows/docker-publish.yml) ![GitHub Tag](https://img.shields.io/github/v/tag/jsness/recipe-extractor) ![GitHub License](https://img.shields.io/github/license/jsness/recipe-extractor)
 
-A web app that scrapes a recipe URL, extracts it, and saves it to a searchable library. Paste a URL, click Extract, and the backend fetches the page, parses structured data (JSON-LD), and falls back to an AI model when needed to produce a clean structured recipe. You can also configure it to skip JSON-LD entirely and run LLM-only extraction.
+A web app that scrapes a recipe URL, extracts it, and saves it to a searchable library. Paste a URL, click Extract, and the backend fetches the page, parses structured data (JSON-LD), and falls back to an AI model when needed to produce a clean structured recipe. You can also configure it to skip JSON-LD entirely and run LLM-only extraction. If a site blocks direct access, Recipe Extractor can also retry against an archived copy from the Wayback Machine.
 
 Most recipe websites bury ingredients and instructions inside walls of ads, pop-ups, and life stories. Recipe Extractor strips all of that away. You get just the recipe, stored in a consistent structure you actually own, with no account required and no dependency on the original site staying online.
 
