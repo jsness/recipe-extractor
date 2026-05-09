@@ -6,6 +6,7 @@ on:
     tags: ["v*"]
     paths:
       - "server/**"
+      - "!server/**/*_test.go"
       - "web/**"
       - "Dockerfile"
       - "compose.yml"
