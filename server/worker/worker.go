@@ -40,14 +40,30 @@ func buildExtractor(cfg config.Config, logger *log.Logger) (extractor.Extractor,
 		ext     extractor.Extractor
 		timeout time.Duration
 	)
-	if cfg.Extractor == "anthropic" && cfg.AnthropicAPIKey != "" {
+	switch cfg.Extractor {
+	case "anthropic":
+		if cfg.AnthropicAPIKey == "" {
+			break
+		}
 		timeout = time.Duration(cfg.AnthropicTimeoutSeconds) * time.Second
 		ext = extractor.NewAnthropic(extractor.AnthropicConfig{
 			APIKey:  cfg.AnthropicAPIKey,
 			Model:   cfg.AnthropicModel,
 			Timeout: timeout,
 		})
-	} else if cfg.Extractor != "anthropic" && cfg.OpenAIAPIKey != "" {
+	case "local":
+		timeout = time.Duration(cfg.LocalLLMTimeoutSeconds) * time.Second
+		ext = extractor.NewLocal(extractor.LocalConfig{
+			APIKey:  cfg.LocalLLMAPIKey,
+			Model:   cfg.LocalLLMModel,
+			BaseURL: cfg.LocalLLMBaseURL,
+			Timeout: timeout,
+			Logger:  logger,
+		})
+	default:
+		if cfg.OpenAIAPIKey == "" {
+			break
+		}
 		timeout = time.Duration(cfg.OpenAITimeoutSeconds) * time.Second
 		ext = extractor.NewOpenAI(extractor.OpenAIConfig{
 			APIKey:         cfg.OpenAIAPIKey,

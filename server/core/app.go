@@ -108,16 +108,27 @@ func (a *App) CreateRecipeExtraction(ctx context.Context, profileID, sourceURL s
 	if err != nil {
 		return store.RecipeExtraction{}, err
 	}
-	if existing != nil {
-		switch existing.Status {
-		case "done":
-			return store.RecipeExtraction{}, ErrRecipeAlreadyExtracted
-		case "queued", "extracting":
-			return store.RecipeExtraction{}, ErrRecipeExtractionInProgress
-		}
+	if err := checkExistingExtraction(existing); err != nil {
+		return store.RecipeExtraction{}, err
 	}
 
 	return a.store.CreateRecipeExtraction(ctx, profileID, sourceURL)
+}
+
+func checkExistingExtraction(existing *store.RecipeExtraction) error {
+	if existing == nil {
+		return nil
+	}
+	switch existing.Status {
+	case "done":
+		if existing.RecipeID == nil {
+			return nil
+		}
+		return ErrRecipeAlreadyExtracted
+	case "queued", "extracting":
+		return ErrRecipeExtractionInProgress
+	}
+	return nil
 }
 
 func (a *App) ListRecipes(ctx context.Context, profileID string) ([]store.RecipeSummary, error) {

@@ -56,13 +56,34 @@ func (s *Store) ListRecipes(ctx context.Context, profileID string) ([]RecipeSumm
 }
 
 func (s *Store) DeleteRecipe(ctx context.Context, profileID, id string) (bool, error) {
-	const q = `
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	const clearExtractionQ = `
+		UPDATE recipe_extractions
+		SET
+			recipe_id = NULL,
+			updated_at = now()
+		WHERE profile_id = $1 AND recipe_id = $2
+	`
+	if _, err := tx.Exec(ctx, clearExtractionQ, profileID, id); err != nil {
+		return false, err
+	}
+
+	const deleteRecipeQ = `
 		DELETE FROM recipes
 		WHERE id = $1 AND profile_id = $2
 	`
 
-	result, err := s.Pool.Exec(ctx, q, id, profileID)
+	result, err := tx.Exec(ctx, deleteRecipeQ, id, profileID)
 	if err != nil {
+		return false, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return false, err
 	}
 

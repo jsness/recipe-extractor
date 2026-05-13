@@ -87,6 +87,18 @@ if err != nil {
 
 `core.New` does not own the pool you pass in, so your app remains responsible for closing it.
 
+To use a local OpenAI-compatible server, set the local provider fields instead of a cloud API key:
+
+```go
+app, err := recipecore.New(pool, recipecore.Config{
+	DatabaseURL:            databaseURL,
+	Extractor:              "local",
+	LocalLLMModel:          "llama3.1",
+	LocalLLMBaseURL:        "http://localhost:11434/v1",
+	LocalLLMTimeoutSeconds: 45,
+}, logger)
+```
+
 ## Service Methods
 
 The `core.App` type exposes reusable operations that do not require the built-in HTTP API:

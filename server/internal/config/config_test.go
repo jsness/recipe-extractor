@@ -18,6 +18,10 @@ func TestLoadFromEnv(t *testing.T) {
 		"ANTHROPIC_API_KEY",
 		"ANTHROPIC_MODEL",
 		"ANTHROPIC_TIMEOUT_SECONDS",
+		"LOCAL_LLM_API_KEY",
+		"LOCAL_LLM_MODEL",
+		"LOCAL_LLM_BASE_URL",
+		"LOCAL_LLM_TIMEOUT_SECONDS",
 	}
 
 	tests := []struct {
@@ -36,6 +40,9 @@ func TestLoadFromEnv(t *testing.T) {
 				OpenAITimeoutSeconds:    45,
 				AnthropicModel:          "claude-sonnet-4-6",
 				AnthropicTimeoutSeconds: 45,
+				LocalLLMModel:           "llama3.1",
+				LocalLLMBaseURL:         "http://localhost:11434/v1",
+				LocalLLMTimeoutSeconds:  45,
 			},
 		},
 		{
@@ -55,6 +62,10 @@ func TestLoadFromEnv(t *testing.T) {
 				"ANTHROPIC_API_KEY":         "anthropic-key",
 				"ANTHROPIC_MODEL":           "claude-test",
 				"ANTHROPIC_TIMEOUT_SECONDS": "34",
+				"LOCAL_LLM_API_KEY":         "local-key",
+				"LOCAL_LLM_MODEL":           "local-model",
+				"LOCAL_LLM_BASE_URL":        "http://localhost:1234/v1",
+				"LOCAL_LLM_TIMEOUT_SECONDS": "56",
 			},
 			want: Config{
 				HTTPAddr:                ":9090",
@@ -71,6 +82,10 @@ func TestLoadFromEnv(t *testing.T) {
 				AnthropicAPIKey:         "anthropic-key",
 				AnthropicModel:          "claude-test",
 				AnthropicTimeoutSeconds: 34,
+				LocalLLMAPIKey:          "local-key",
+				LocalLLMModel:           "local-model",
+				LocalLLMBaseURL:         "http://localhost:1234/v1",
+				LocalLLMTimeoutSeconds:  56,
 			},
 		},
 		{
@@ -79,6 +94,7 @@ func TestLoadFromEnv(t *testing.T) {
 				"LLM_ONLY_EXTRACTION":       "not-bool",
 				"OPENAI_TIMEOUT_SECONDS":    "not-int",
 				"ANTHROPIC_TIMEOUT_SECONDS": "also-not-int",
+				"LOCAL_LLM_TIMEOUT_SECONDS": "still-not-int",
 			},
 			want: Config{
 				HTTPAddr:                ":8080",
@@ -89,6 +105,9 @@ func TestLoadFromEnv(t *testing.T) {
 				OpenAITimeoutSeconds:    45,
 				AnthropicModel:          "claude-sonnet-4-6",
 				AnthropicTimeoutSeconds: 45,
+				LocalLLMModel:           "llama3.1",
+				LocalLLMBaseURL:         "http://localhost:11434/v1",
+				LocalLLMTimeoutSeconds:  45,
 			},
 		},
 	}

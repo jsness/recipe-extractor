@@ -20,6 +20,10 @@ type Config struct {
 	AnthropicAPIKey         string
 	AnthropicModel          string
 	AnthropicTimeoutSeconds int
+	LocalLLMAPIKey          string
+	LocalLLMModel           string
+	LocalLLMBaseURL         string
+	LocalLLMTimeoutSeconds  int
 }
 
 func LoadFromEnv() Config {
@@ -40,6 +44,10 @@ func LoadFromEnv() Config {
 		AnthropicAPIKey:         getenv("ANTHROPIC_API_KEY", ""),
 		AnthropicModel:          getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
 		AnthropicTimeoutSeconds: getenvInt("ANTHROPIC_TIMEOUT_SECONDS", 45),
+		LocalLLMAPIKey:          getenv("LOCAL_LLM_API_KEY", ""),
+		LocalLLMModel:           getenv("LOCAL_LLM_MODEL", "llama3.1"),
+		LocalLLMBaseURL:         getenv("LOCAL_LLM_BASE_URL", "http://localhost:11434/v1"),
+		LocalLLMTimeoutSeconds:  getenvInt("LOCAL_LLM_TIMEOUT_SECONDS", 45),
 	}
 }
 

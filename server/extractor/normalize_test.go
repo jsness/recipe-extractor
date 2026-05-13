@@ -59,6 +59,46 @@ func TestNormalizeRecipeClearsBlankOptionalStrings(t *testing.T) {
 	}
 }
 
+func TestNormalizeRecipeCleansLLMMetadata(t *testing.T) {
+	yield := "8"
+	notes := " A&nbsp;note. "
+	recipe := Recipe{
+		Title:        " French&nbsp;Toast ",
+		Ingredients:  []IngredientGroup{{Items: []string{" 4&nbsp;large eggs "}}},
+		Instructions: []string{"Cook until golden.&nbsp;"},
+		Yield:        &yield,
+		Times: map[string]string{
+			"preptime":  "PT5M",
+			"cook_time": "PT10M",
+			"totalTime": "PT15M",
+			"":          "PT1M",
+		},
+		Notes: &notes,
+	}
+
+	normalizeRecipe(&recipe)
+
+	wantYield := "8 servings"
+	wantNotes := "A note."
+	want := Recipe{
+		Title:        "French Toast",
+		Ingredients:  []IngredientGroup{{Items: []string{"4 large eggs"}}},
+		Instructions: []string{"Cook until golden."},
+		Yield:        &wantYield,
+		Times: map[string]string{
+			"Prep Time":  "5 minutes",
+			"Cook Time":  "10 minutes",
+			"Total Time": "15 minutes",
+		},
+		Notes:            &wantNotes,
+		LinkedRecipeURLs: []string{},
+	}
+
+	if !reflect.DeepEqual(recipe, want) {
+		t.Fatalf("normalizeRecipe() = %#v, want %#v", recipe, want)
+	}
+}
+
 func TestValidateRecipe(t *testing.T) {
 	valid := Recipe{
 		Title:        "Soup",
@@ -124,6 +164,38 @@ func TestValidateRecipe(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("validateRecipe() error = %q, want containing %q", err.Error(), tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseModelRecipe(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "raw json",
+			content: `{"title":"Soup","ingredients":[{"group":"","items":["salt"]}],"instructions":["Stir."],"times":{},"linked_recipe_urls":[]}`,
+		},
+		{
+			name:    "fenced json",
+			content: "Here is the JSON:\n\n```json\n{\"title\":\"Soup\",\"ingredients\":[{\"group\":\"\",\"items\":[\"salt\"]}],\"instructions\":[\"Stir.\"],\"times\":{},\"linked_recipe_urls\":[]}\n```",
+		},
+		{
+			name:    "prose wrapped json",
+			content: "Result: {\"title\":\"Soup\",\"ingredients\":[{\"group\":\"\",\"items\":[\"salt\"]}],\"instructions\":[\"Stir.\"],\"times\":{},\"linked_recipe_urls\":[]} Thanks.",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			recipe, err := parseModelRecipe(tc.content)
+			if err != nil {
+				t.Fatalf("parseModelRecipe() error = %v", err)
+			}
+			if recipe.Title != "Soup" {
+				t.Fatalf("Title = %q, want Soup", recipe.Title)
 			}
 		})
 	}
