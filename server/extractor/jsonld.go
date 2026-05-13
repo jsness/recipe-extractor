@@ -111,15 +111,8 @@ func mapToRecipe(node map[string]json.RawMessage, ingredientGroups []IngredientG
 	}
 
 	if v, ok := node["recipeYield"]; ok {
-		var s string
-		if err := json.Unmarshal(v, &s); err == nil && s != "" {
-			recipe.Yield = &s
-		} else {
-			var n json.Number
-			if err := json.Unmarshal(v, &n); err == nil {
-				ns := n.String()
-				recipe.Yield = &ns
-			}
+		if yield, ok := parseRecipeYield(v); ok {
+			recipe.Yield = &yield
 		}
 	}
 
@@ -158,6 +151,30 @@ func mapToRecipe(node map[string]json.RawMessage, ingredientGroups []IngredientG
 		return Recipe{}, err
 	}
 	return recipe, nil
+}
+
+func parseRecipeYield(raw json.RawMessage) (string, bool) {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil && s != "" {
+		return s, true
+	}
+
+	var values []string
+	if err := json.Unmarshal(raw, &values); err == nil {
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				return value, true
+			}
+		}
+	}
+
+	var n json.Number
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n.String(), true
+	}
+
+	return "", false
 }
 
 func parseInstructions(raw json.RawMessage) ([]string, error) {

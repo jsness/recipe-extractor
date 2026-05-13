@@ -8,7 +8,7 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 
 ## Quickstart
 
-**Requires:** [Docker](https://docs.docker.com/get-docker/). An [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key is optional by default - recipes are extracted from structured data (JSON-LD) automatically, and the LLM is only used as a fallback unless `LLM_ONLY_EXTRACTION=true`.
+**Requires:** [Docker](https://docs.docker.com/get-docker/). An [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com) API key is optional by default - recipes are extracted from structured data (JSON-LD) automatically, and the LLM is only used as a fallback unless `LLM_ONLY_EXTRACTION=true`. You can also use a local OpenAI-compatible LLM server with `EXTRACTOR=local`.
 
 ### No-clone install (recommended)
 
@@ -16,7 +16,7 @@ Most recipe websites bury ingredients and instructions inside walls of ads, pop-
 mkdir recipe-extractor && cd recipe-extractor
 curl -o compose.yml https://raw.githubusercontent.com/jsness/recipe-extractor/main/compose.yml
 curl -o .env https://raw.githubusercontent.com/jsness/recipe-extractor/main/.env.example
-nano .env   # optionally set ANTHROPIC_API_KEY or OPENAI_API_KEY; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
+nano .env   # optionally set ANTHROPIC_API_KEY, OPENAI_API_KEY, or EXTRACTOR=local; set LLM_ONLY_EXTRACTION=true to force LLM-only mode
 docker compose up -d
 ```
 
@@ -24,7 +24,7 @@ Open **http://localhost:8080**. Data persists in a Docker volume across restarts
 
 ### Local development
 
-For hot reload, copy `.env.example` to `.env`, optionally set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`, then run:
+For hot reload, copy `.env.example` to `.env`, optionally set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `EXTRACTOR=local`, then run:
 
 **Linux/macOS**
 ```bash

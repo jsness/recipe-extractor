@@ -32,6 +32,10 @@ func main() {
 		AnthropicAPIKey:         cfg.AnthropicAPIKey,
 		AnthropicModel:          cfg.AnthropicModel,
 		AnthropicTimeoutSeconds: cfg.AnthropicTimeoutSeconds,
+		LocalLLMAPIKey:          cfg.LocalLLMAPIKey,
+		LocalLLMModel:           cfg.LocalLLMModel,
+		LocalLLMBaseURL:         cfg.LocalLLMBaseURL,
+		LocalLLMTimeoutSeconds:  cfg.LocalLLMTimeoutSeconds,
 	}, logger)
 	if err != nil {
 		logger.Fatalf("app startup: %v", err)

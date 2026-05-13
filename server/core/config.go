@@ -15,6 +15,10 @@ type Config struct {
 	AnthropicAPIKey         string
 	AnthropicModel          string
 	AnthropicTimeoutSeconds int
+	LocalLLMAPIKey          string
+	LocalLLMModel           string
+	LocalLLMBaseURL         string
+	LocalLLMTimeoutSeconds  int
 }
 
 func (c Config) workerConfig() internalconfig.Config {
@@ -31,5 +35,9 @@ func (c Config) workerConfig() internalconfig.Config {
 		AnthropicAPIKey:         c.AnthropicAPIKey,
 		AnthropicModel:          c.AnthropicModel,
 		AnthropicTimeoutSeconds: c.AnthropicTimeoutSeconds,
+		LocalLLMAPIKey:          c.LocalLLMAPIKey,
+		LocalLLMModel:           c.LocalLLMModel,
+		LocalLLMBaseURL:         c.LocalLLMBaseURL,
+		LocalLLMTimeoutSeconds:  c.LocalLLMTimeoutSeconds,
 	}
 }

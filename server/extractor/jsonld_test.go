@@ -139,7 +139,25 @@ func TestTryParseJSONLD(t *testing.T) {
 				Title:            "Bread",
 				Ingredients:      []IngredientGroup{{Items: []string{"flour"}}},
 				Instructions:     []string{"Knead."},
-				Yield:            stringPtr("1"),
+				Yield:            stringPtr("1 serving"),
+				Times:            map[string]string{},
+				LinkedRecipeURLs: []string{},
+			},
+		},
+		{
+			name: "array recipe yield",
+			raw: `{
+					"@type": "Recipe",
+					"name": "Toast",
+					"recipeIngredient": ["bread"],
+					"recipeInstructions": ["Toast."],
+					"recipeYield": ["8"]
+				}`,
+			want: Recipe{
+				Title:            "Toast",
+				Ingredients:      []IngredientGroup{{Items: []string{"bread"}}},
+				Instructions:     []string{"Toast."},
+				Yield:            stringPtr("8 servings"),
 				Times:            map[string]string{},
 				LinkedRecipeURLs: []string{},
 			},
