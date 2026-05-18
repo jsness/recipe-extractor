@@ -145,6 +145,39 @@ func TestTryParseJSONLD(t *testing.T) {
 			},
 		},
 		{
+			name: "graph skips non object entries before recipe",
+			raw: `{
+				"@graph": [
+					{"@type": "Article", "name": "Post"},
+					[],
+					{
+						"@type": "Recipe",
+						"name": "Italian Pasta Salad",
+						"recipeYield": ["8", "8 to 12"],
+						"recipeIngredient": [
+							"1 pound fusilli or rotini pasta",
+							"1 recipe Italian Dressing"
+						],
+						"recipeInstructions": [
+							{"@type":"HowToStep","text":"Cook the pasta."},
+							{"@type":"HowToStep","text":"Toss with dressing."}
+						]
+					}
+				]
+			}`,
+			want: Recipe{
+				Title: "Italian Pasta Salad",
+				Ingredients: []IngredientGroup{{Items: []string{
+					"1 pound fusilli or rotini pasta",
+					"1 recipe Italian Dressing",
+				}}},
+				Instructions:     []string{"Cook the pasta.", "Toss with dressing."},
+				Yield:            stringPtr("8 servings"),
+				Times:            map[string]string{},
+				LinkedRecipeURLs: []string{},
+			},
+		},
+		{
 			name: "array recipe yield",
 			raw: `{
 					"@type": "Recipe",

@@ -148,7 +148,8 @@ func IsArchivedURL(rawURL string) bool {
 	return strings.EqualFold(parsed.Hostname(), "web.archive.org")
 }
 
-var jsonLDRegex = regexp.MustCompile(`(?is)<script[^>]*type=["']application/ld\+json["'][^>]*>(.*?)</script>`)
+var scriptRegex = regexp.MustCompile(`(?is)<script\b([^>]*)>(.*?)</script>`)
+var jsonLDTypeAttrRegex = regexp.MustCompile(`(?is)\btype\s*=\s*(?:"application/ld\+json"|'application/ld\+json'|application/ld\+json(?:\s|$))`)
 var tagRegex = regexp.MustCompile(`(?s)<[^>]+>`)
 var linkRegex = regexp.MustCompile(`(?is)<a\s+[^>]*href=["']([^"'#][^"']*)["'][^>]*>(.*?)</a>`)
 var wprmIngredientGroupRegex = regexp.MustCompile(`(?is)<div[^>]*class=["'][^"']*\bwprm-recipe-ingredient-group\b[^"']*["'][^>]*>(.*?)</div>`)
@@ -156,13 +157,16 @@ var wprmIngredientGroupNameRegex = regexp.MustCompile(`(?is)<h4[^>]*class=["'][^
 var wprmIngredientItemRegex = regexp.MustCompile(`(?is)<li[^>]*class=["'][^"']*\bwprm-recipe-ingredient\b[^"']*["'][^>]*>(.*?)</li>`)
 
 func extractJSONLD(html string) []string {
-	matches := jsonLDRegex.FindAllStringSubmatch(html, -1)
+	matches := scriptRegex.FindAllStringSubmatch(html, -1)
 	out := make([]string, 0, len(matches))
 	for _, m := range matches {
-		if len(m) < 2 {
+		if len(m) < 3 {
 			continue
 		}
-		value := strings.TrimSpace(m[1])
+		if !jsonLDTypeAttrRegex.MatchString(m[1]) {
+			continue
+		}
+		value := strings.TrimSpace(m[2])
 		if value != "" {
 			out = append(out, value)
 		}

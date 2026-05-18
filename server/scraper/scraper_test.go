@@ -25,6 +25,13 @@ func TestExtractJSONLD(t *testing.T) {
 			want: []string{`{"@type":"Recipe"}`, `{"@type":"BreadcrumbList"}`},
 		},
 		{
+			name: "extracts unquoted type with other attributes",
+			html: `<script type=application/ld+json class=yoast-schema-graph>
+				{"@type":"Recipe","name":"Pasta"}
+			</script>`,
+			want: []string{`{"@type":"Recipe","name":"Pasta"}`},
+		},
+		{
 			name: "ignores empty scripts",
 			html: `<script type="application/ld+json">   </script>`,
 			want: []string{},

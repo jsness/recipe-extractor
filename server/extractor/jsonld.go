@@ -49,9 +49,13 @@ func tryParseJSONLD(raw string, ingredientGroups []IngredientGroup) (Recipe, err
 
 	// Check for @graph array
 	if graphRaw, ok := node["@graph"]; ok {
-		var graph []map[string]json.RawMessage
+		var graph []json.RawMessage
 		if err := json.Unmarshal(graphRaw, &graph); err == nil {
-			for _, item := range graph {
+			for _, rawItem := range graph {
+				var item map[string]json.RawMessage
+				if err := json.Unmarshal(rawItem, &item); err != nil {
+					continue
+				}
 				if isRecipeType(item) {
 					return mapToRecipe(item, ingredientGroups)
 				}
