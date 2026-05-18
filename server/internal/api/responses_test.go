@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"recipe-extractor/server/scraper"
-	"recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/scraper"
+	"github.com/jsness/recipe-extractor/server/store"
 )
 
 func TestNewRecipeExtractionResponse(t *testing.T) {

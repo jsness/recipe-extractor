@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"recipe-extractor/server/extractor"
+	"github.com/jsness/recipe-extractor/server/extractor"
 )
 
 func TestExtractJSONLD(t *testing.T) {

@@ -3,6 +3,8 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
+DEV_COMPOSE_FILE="$ROOT/compose.dev.yml"
+DEV_COMPOSE_PROJECT="${DEV_COMPOSE_PROJECT:-recipe-extractor-local}"
 
 load_env() {
   [[ -f "$ENV_FILE" ]] || return 0
@@ -18,7 +20,7 @@ load_env() {
 wait_for_postgres() {
   local deadline=$(( SECONDS + 60 ))
   while (( SECONDS < deadline )); do
-    if docker compose ps postgres 2>/dev/null | grep -q 'healthy'; then
+    if docker compose -p "$DEV_COMPOSE_PROJECT" -f "$DEV_COMPOSE_FILE" ps postgres 2>/dev/null | grep -q 'healthy'; then
       return 0
     fi
     sleep 2
@@ -29,18 +31,20 @@ wait_for_postgres() {
 
 load_env
 
-export DATABASE_URL="${DATABASE_URL:-postgres://postgres:postgres@localhost:5433/recipes?sslmode=disable}"
-if [[ -z "${DATABASE_URL+set}" ]] || [[ "$DATABASE_URL" == "postgres://postgres:postgres@localhost:5433/recipes?sslmode=disable" ]]; then
-  echo 'DATABASE_URL not set, defaulting to localhost:5433/recipes'
-fi
+export DEV_HTTP_ADDR="${DEV_HTTP_ADDR:-:8081}"
+export DEV_VITE_PORT="${DEV_VITE_PORT:-5174}"
+export DEV_POSTGRES_PORT="${DEV_POSTGRES_PORT:-5434}"
 
-export FRONTEND_DEV_PROXY_URL='http://localhost:5173'
+export DATABASE_URL="${DEV_DATABASE_URL:-postgres://postgres:postgres@localhost:${DEV_POSTGRES_PORT}/recipes?sslmode=disable}"
+echo "Using dev database at ${DATABASE_URL}"
 
-echo 'Stopping app container if it is already running...'
-(cd "$ROOT" && docker compose stop app) > /dev/null
+export HTTP_ADDR="$DEV_HTTP_ADDR"
+export FRONTEND_DEV_PROXY_URL="http://localhost:${DEV_VITE_PORT}"
+export VITE_DEV_PORT="$DEV_VITE_PORT"
+export VITE_API_PROXY_TARGET="http://localhost${DEV_HTTP_ADDR}"
 
-echo 'Starting Postgres container...'
-(cd "$ROOT" && docker compose up -d postgres)
+echo "Starting isolated dev Postgres container on localhost:${DEV_POSTGRES_PORT}..."
+(cd "$ROOT" && docker compose -p "$DEV_COMPOSE_PROJECT" -f "$DEV_COMPOSE_FILE" up -d postgres)
 
 echo 'Waiting for Postgres to become healthy...'
 (cd "$ROOT" && wait_for_postgres)

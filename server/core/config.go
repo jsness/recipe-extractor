@@ -1,6 +1,6 @@
 package core
 
-import internalconfig "recipe-extractor/server/internal/config"
+import internalconfig "github.com/jsness/recipe-extractor/server/internal/config"
 
 type Config struct {
 	DatabaseURL             string

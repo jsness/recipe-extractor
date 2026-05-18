@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"recipe-extractor/server/core"
-	internalapi "recipe-extractor/server/internal/api"
+	"github.com/jsness/recipe-extractor/server/core"
+	internalapi "github.com/jsness/recipe-extractor/server/internal/api"
 )
 
 type Config struct {

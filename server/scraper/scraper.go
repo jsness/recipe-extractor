@@ -15,11 +15,11 @@ import (
 
 	"github.com/temoto/robotstxt"
 
-	"recipe-extractor/server/extractor"
+	"github.com/jsness/recipe-extractor/server/extractor"
 )
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
-const userAgent = "recipe-extractor/0.1 (+https://localhost)"
+const userAgent = "recipe-extractor/1.11.0 (+https://github.com/jsness/recipe-extractor)"
 const blockedAccessMessage = "site blocked automated access and requires a browser challenge"
 
 type Scraper struct {

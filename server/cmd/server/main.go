@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"recipe-extractor/server/core"
-	"recipe-extractor/server/httpapi"
-	"recipe-extractor/server/internal/config"
+	"github.com/jsness/recipe-extractor/server/core"
+	"github.com/jsness/recipe-extractor/server/httpapi"
+	"github.com/jsness/recipe-extractor/server/internal/config"
 )
 
 func main() {

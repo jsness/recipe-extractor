@@ -8,7 +8,7 @@ import (
 	neturl "net/url"
 	"time"
 
-	"recipe-extractor/server/scraper"
+	"github.com/jsness/recipe-extractor/server/scraper"
 )
 
 const availabilityEndpoint = "https://archive.org/wayback/available"

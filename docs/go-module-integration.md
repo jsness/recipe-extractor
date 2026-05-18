@@ -4,12 +4,12 @@ If you want to build a separate hosted product on top of this repository, you do
 
 ## Main Reusable Packages
 
-- `recipe-extractor/server/core`
+- `github.com/jsness/recipe-extractor/server/core`
   - opens the database
   - runs migrations
   - builds the store and worker
   - exposes service-style methods for recipe operations
-- `recipe-extractor/server/httpapi`
+- `github.com/jsness/recipe-extractor/server/httpapi`
   - exposes the existing HTTP API as an `http.Handler`
   - can be mounted inside your own router
 
@@ -27,8 +27,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	recipecore "recipe-extractor/server/core"
-	recipehttp "recipe-extractor/server/httpapi"
+	recipecore "github.com/jsness/recipe-extractor/server/core"
+	recipehttp "github.com/jsness/recipe-extractor/server/httpapi"
 )
 
 func main() {

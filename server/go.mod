@@ -1,4 +1,4 @@
-module recipe-extractor/server
+module github.com/jsness/recipe-extractor/server
 
 go 1.24.0
 

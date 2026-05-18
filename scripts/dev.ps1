@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $root '.env'
+$devComposeFile = Join-Path $root 'compose.dev.yml'
+$devComposeProject = if ($env:DEV_COMPOSE_PROJECT) { $env:DEV_COMPOSE_PROJECT } else { 'recipe-extractor-local' }
 
 function Set-EnvFromFile {
   param(
@@ -37,7 +39,7 @@ function Wait-ForPostgres {
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
   while ((Get-Date) -lt $deadline) {
-    $status = docker compose ps postgres 2>$null
+    $status = docker compose -p $devComposeProject -f $devComposeFile ps postgres 2>$null
     if ($LASTEXITCODE -eq 0 -and ($status -match 'healthy')) {
       return
     }
@@ -50,20 +52,26 @@ function Wait-ForPostgres {
 
 Set-EnvFromFile -Path $envPath
 
-if (-not $env:DATABASE_URL) {
-  $env:DATABASE_URL = 'postgres://postgres:postgres@localhost:5433/recipes?sslmode=disable'
-  Write-Host 'DATABASE_URL not set, defaulting to localhost:5433/recipes'
-}
+$devHttpAddr = if ($env:DEV_HTTP_ADDR) { $env:DEV_HTTP_ADDR } else { ':8081' }
+$devVitePort = if ($env:DEV_VITE_PORT) { $env:DEV_VITE_PORT } else { '5174' }
+$devPostgresPort = if ($env:DEV_POSTGRES_PORT) { $env:DEV_POSTGRES_PORT } else { '5434' }
 
-$env:FRONTEND_DEV_PROXY_URL = 'http://localhost:5173'
+$env:DATABASE_URL = if ($env:DEV_DATABASE_URL) {
+  $env:DEV_DATABASE_URL
+} else {
+  "postgres://postgres:postgres@localhost:$devPostgresPort/recipes?sslmode=disable"
+}
+Write-Host "Using dev database at $($env:DATABASE_URL)"
+
+$env:HTTP_ADDR = $devHttpAddr
+$env:FRONTEND_DEV_PROXY_URL = "http://localhost:$devVitePort"
+$env:VITE_DEV_PORT = $devVitePort
+$env:VITE_API_PROXY_TARGET = "http://localhost$devHttpAddr"
 
 Push-Location $root
 try {
-  Write-Host 'Stopping app container if it is already running...'
-  docker compose stop app | Out-Null
-
-  Write-Host 'Starting Postgres container...'
-  docker compose up -d postgres
+  Write-Host "Starting isolated dev Postgres container on localhost:$devPostgresPort..."
+  docker compose -p $devComposeProject -f $devComposeFile up -d postgres
 
   Write-Host 'Waiting for Postgres to become healthy...'
   Wait-ForPostgres
@@ -72,12 +80,16 @@ try {
 }
 
 $serverCommand = @"
+`$env:DATABASE_URL = '$($env:DATABASE_URL)';
+`$env:HTTP_ADDR = '$($env:HTTP_ADDR)';
 `$env:FRONTEND_DEV_PROXY_URL = '$($env:FRONTEND_DEV_PROXY_URL)';
 Set-Location '$root\server';
 go run .\cmd\server
 "@
 
 $webCommand = @"
+`$env:VITE_DEV_PORT = '$($env:VITE_DEV_PORT)';
+`$env:VITE_API_PROXY_TARGET = '$($env:VITE_API_PROXY_TARGET)';
 Set-Location '$root\web';
 npm run dev
 "@

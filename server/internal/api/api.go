@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"recipe-extractor/server/core"
-	"recipe-extractor/server/internal/frontend"
+	"github.com/jsness/recipe-extractor/server/core"
+	"github.com/jsness/recipe-extractor/server/internal/frontend"
 )
 
 type Config struct {

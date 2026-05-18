@@ -3,8 +3,8 @@ package api
 import (
 	"time"
 
-	"recipe-extractor/server/scraper"
-	"recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/scraper"
+	"github.com/jsness/recipe-extractor/server/store"
 )
 
 type createRecipeRequest struct {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"recipe-extractor/server/extractor"
-	"recipe-extractor/server/internal/config"
+	"github.com/jsness/recipe-extractor/server/extractor"
+	"github.com/jsness/recipe-extractor/server/internal/config"
 )
 
 func TestBuildExtractorSupportsLocalWithoutAPIKey(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/store"
 )
 
 func TestCheckExistingExtraction(t *testing.T) {

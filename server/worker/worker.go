@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"recipe-extractor/server/extractor"
-	"recipe-extractor/server/internal/config"
-	"recipe-extractor/server/scraper"
-	"recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/extractor"
+	"github.com/jsness/recipe-extractor/server/internal/config"
+	"github.com/jsness/recipe-extractor/server/scraper"
+	"github.com/jsness/recipe-extractor/server/store"
 )
 
 type Worker struct {

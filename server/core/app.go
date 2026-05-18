@@ -10,11 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	migratelite "github.com/jsness/go-migrate-lite"
 
-	"recipe-extractor/server/internal/db"
-	"recipe-extractor/server/migrations"
-	"recipe-extractor/server/store"
-	"recipe-extractor/server/wayback"
-	"recipe-extractor/server/worker"
+	"github.com/jsness/recipe-extractor/server/internal/db"
+	"github.com/jsness/recipe-extractor/server/migrations"
+	"github.com/jsness/recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/wayback"
+	"github.com/jsness/recipe-extractor/server/worker"
 )
 
 var (
