@@ -1,0 +1,21 @@
+name: Check AI attribution
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check commit trailers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/check-ai-attribution.py "$BASE_SHA..$HEAD_SHA"
