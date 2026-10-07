@@ -38,36 +38,54 @@ func (e *jsonldExtractor) NormalizeRecipe(ctx context.Context, input Input) (Rec
 		return e.fallback.NormalizeRecipe(ctx, input)
 	}
 	e.logger.Printf("json-ld parse failed, no LLM configured: %s", reason)
-	return Recipe{}, fmt.Errorf("could not extract recipe from structured data: %s", reason)
+	return Recipe{}, fmt.Errorf("%w: could not extract recipe from structured data: %s", ErrInvalidRecipe, reason)
 }
 
 func tryParseJSONLD(raw string, ingredientGroups []IngredientGroup) (Recipe, error) {
-	var node map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &node); err != nil {
+	if !json.Valid([]byte(raw)) {
+		var node any
+		err := json.Unmarshal([]byte(raw), &node)
 		return Recipe{}, fmt.Errorf("unmarshal: %w", err)
 	}
-
-	// Check for @graph array
-	if graphRaw, ok := node["@graph"]; ok {
-		var graph []json.RawMessage
-		if err := json.Unmarshal(graphRaw, &graph); err == nil {
-			for _, rawItem := range graph {
-				var item map[string]json.RawMessage
-				if err := json.Unmarshal(rawItem, &item); err != nil {
-					continue
-				}
-				if isRecipeType(item) {
-					return mapToRecipe(item, ingredientGroups)
+	var lastErr error
+	var visit func(json.RawMessage, int) (Recipe, bool)
+	visit = func(value json.RawMessage, depth int) (Recipe, bool) {
+		if depth > 32 {
+			return Recipe{}, false
+		}
+		var nodes []json.RawMessage
+		if json.Unmarshal(value, &nodes) == nil {
+			for _, child := range nodes {
+				if recipe, ok := visit(child, depth+1); ok {
+					return recipe, true
 				}
 			}
+			return Recipe{}, false
 		}
+		var node map[string]json.RawMessage
+		if json.Unmarshal(value, &node) != nil {
+			return Recipe{}, false
+		}
+		if graph, ok := node["@graph"]; ok {
+			if recipe, ok := visit(graph, depth+1); ok {
+				return recipe, true
+			}
+		}
+		if isRecipeType(node) {
+			recipe, err := mapToRecipe(node, ingredientGroups)
+			if err == nil {
+				return recipe, true
+			}
+			lastErr = err
+		}
+		return Recipe{}, false
 	}
-
-	// Check if root node is a Recipe
-	if isRecipeType(node) {
-		return mapToRecipe(node, ingredientGroups)
+	if recipe, ok := visit(json.RawMessage(raw), 0); ok {
+		return recipe, nil
 	}
-
+	if lastErr != nil {
+		return Recipe{}, lastErr
+	}
 	return Recipe{}, fmt.Errorf("no Recipe node found")
 }
 

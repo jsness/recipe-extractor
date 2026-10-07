@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -10,11 +11,23 @@ import (
 	"github.com/jsness/recipe-extractor/server/internal/config"
 	"github.com/jsness/recipe-extractor/server/scraper"
 	"github.com/jsness/recipe-extractor/server/store"
+	"github.com/jsness/recipe-extractor/server/wayback"
 )
+
+type pageFetcher interface {
+	Fetch(context.Context, string) (scraper.Result, error)
+}
+
+type snapshotFinder interface {
+	ListSnapshots(context.Context, string) ([]wayback.Snapshot, error)
+}
+
+var errScrape = errors.New("scrape")
 
 type Worker struct {
 	store        *store.Store
-	scraper      *scraper.Scraper
+	scraper      pageFetcher
+	archive      snapshotFinder
 	extractor    extractor.Extractor
 	logger       *log.Logger
 	pollInterval time.Duration
@@ -28,7 +41,8 @@ func New(cfg config.Config, s *store.Store, logger *log.Logger) (*Worker, error)
 
 	return &Worker{
 		store:        s,
-		scraper:      scraper.New(timeout),
+		scraper:      scraper.NewWithLogger(timeout, logger),
+		archive:      wayback.NewWithLogger(10*time.Second, logger),
 		extractor:    ext,
 		logger:       logger,
 		pollInterval: 2 * time.Second,
@@ -129,11 +143,23 @@ func (w *Worker) process(ctx context.Context) {
 }
 
 func (w *Worker) processExtraction(ctx context.Context, extraction *store.RecipeExtraction) error {
-	scrapeResult, err := w.scraper.Fetch(ctx, extraction.SourceURL)
+	started := time.Now()
+	normalizedRecipe, sourceURL, err := w.extractRecipe(ctx, extraction.SourceURL)
+	w.logger.Printf("extraction stage=extract id=%s duration=%s error=%v", extraction.ID, time.Since(started).Round(time.Millisecond), err)
 	if err != nil {
-		return fmt.Errorf("scrape: %w", err)
+		return err
 	}
 
+	return w.saveRecipe(ctx, extraction, normalizedRecipe, sourceURL)
+}
+
+func (w *Worker) extractSource(ctx context.Context, sourceURL string) (extractor.Recipe, error) {
+	scrapeResult, err := w.scraper.Fetch(ctx, sourceURL)
+	if err != nil {
+		return extractor.Recipe{}, fmt.Errorf("%w: %w", errScrape, err)
+	}
+
+	started := time.Now()
 	normalizedRecipe, err := w.extractor.NormalizeRecipe(ctx, extractor.Input{
 		SourceURL:   scrapeResult.SourceURL,
 		JSONLD:      scrapeResult.JSONLD,
@@ -141,10 +167,58 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 		Links:       scrapeResult.Links,
 		Ingredients: scrapeResult.Ingredients,
 	})
+	w.logger.Printf("extraction stage=normalize url=%s duration=%s error=%v", sourceURL, time.Since(started).Round(time.Millisecond), err)
 	if err != nil {
-		return fmt.Errorf("normalize recipe: %w", err)
+		return extractor.Recipe{}, fmt.Errorf("normalize recipe: %w", err)
 	}
+	return normalizedRecipe, nil
+}
 
+func (w *Worker) extractRecipe(ctx context.Context, sourceURL string) (extractor.Recipe, string, error) {
+	recipe, initialErr := w.extractSource(ctx, sourceURL)
+	if initialErr == nil {
+		return recipe, sourceURL, nil
+	}
+	originalURL, archived := wayback.OriginalURL(sourceURL)
+	// Provider errors and robots denials are not repaired by choosing another
+	// capture. Direct-site failures still use the existing user-selected fallback.
+	if !archived || w.archive == nil || ctx.Err() != nil || errors.Is(initialErr, scraper.ErrRobotsDenied) || errors.Is(initialErr, scraper.ErrRobotsCheck) ||
+		(!errors.Is(initialErr, errScrape) && !errors.Is(initialErr, extractor.ErrInvalidRecipe)) {
+		return extractor.Recipe{}, "", initialErr
+	}
+	recoveryCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	snapshots, err := w.archive.ListSnapshots(recoveryCtx, originalURL)
+	if err != nil {
+		return extractor.Recipe{}, "", fmt.Errorf("%w; archive candidate lookup: %w", initialErr, err)
+	}
+	lastErr := initialErr
+	attempts := 0
+	seen := map[string]bool{wayback.CaptureKey(sourceURL): true}
+	for _, snapshot := range snapshots {
+		original, valid := wayback.OriginalURL(snapshot.URL)
+		key := wayback.CaptureKey(snapshot.URL)
+		if !valid || !wayback.SameSourceURL(original, originalURL) || seen[key] {
+			continue
+		}
+		seen[key] = true
+		attempts++
+		w.logger.Printf("extraction stage=archive_fallback attempt=%d snapshot=%s url=%s", attempts, snapshot.Timestamp, snapshot.URL)
+		recipe, lastErr = w.extractSource(recoveryCtx, snapshot.URL)
+		if lastErr == nil {
+			w.logger.Printf("extraction stage=archive_fallback outcome=success snapshot=%s", snapshot.Timestamp)
+			return recipe, snapshot.URL, nil
+		}
+		w.logger.Printf("extraction stage=archive_fallback attempt=%d error=%v", attempts, lastErr)
+		if attempts == 2 || recoveryCtx.Err() != nil || errors.Is(lastErr, scraper.ErrRobotsDenied) || errors.Is(lastErr, scraper.ErrRobotsCheck) ||
+			(!errors.Is(lastErr, errScrape) && !errors.Is(lastErr, extractor.ErrInvalidRecipe)) {
+			break
+		}
+	}
+	return extractor.Recipe{}, "", fmt.Errorf("%w; archive recovery tried %d alternative snapshots: %w", initialErr, attempts, lastErr)
+}
+
+func (w *Worker) saveRecipe(ctx context.Context, extraction *store.RecipeExtraction, normalizedRecipe extractor.Recipe, sourceURL string) error {
 	ingredients := make([]store.IngredientGroup, len(normalizedRecipe.Ingredients))
 	for i, g := range normalizedRecipe.Ingredients {
 		ingredients[i] = store.IngredientGroup{Group: g.Group, Items: g.Items}
@@ -157,7 +231,7 @@ func (w *Worker) processExtraction(ctx context.Context, extraction *store.Recipe
 		Yield:            normalizedRecipe.Yield,
 		Times:            normalizedRecipe.Times,
 		Notes:            normalizedRecipe.Notes,
-		SourceURL:        extraction.SourceURL,
+		SourceURL:        sourceURL,
 		LinkedRecipeURLs: normalizedRecipe.LinkedRecipeURLs,
 	})
 	if err != nil {

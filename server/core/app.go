@@ -67,7 +67,7 @@ func New(pool *pgxpool.Pool, cfg Config, logger *log.Logger) (*App, error) {
 		pool:    pool,
 		store:   s,
 		worker:  w,
-		wayback: wayback.New(10 * time.Second),
+		wayback: wayback.NewWithLogger(10*time.Second, logger),
 	}, nil
 }
 

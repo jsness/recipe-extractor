@@ -100,7 +100,7 @@ func (e *AnthropicExtractor) NormalizeRecipe(ctx context.Context, input Input) (
 
 	var recipe Recipe
 	if err := json.Unmarshal([]byte(content), &recipe); err != nil {
-		return Recipe{}, fmt.Errorf("failed to parse model json: %w", err)
+		return Recipe{}, fmt.Errorf("%w: failed to parse model json: %v", ErrInvalidRecipe, err)
 	}
 
 	normalizeRecipe(&recipe)

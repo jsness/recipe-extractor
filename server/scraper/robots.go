@@ -2,10 +2,11 @@ package scraper
 
 import (
 	"context"
-	"io"
+	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/jsness/recipe-extractor/server/internal/httpfetch"
 	"github.com/temoto/robotstxt"
 )
 
@@ -24,23 +25,24 @@ func (s *Scraper) robotsAllowed(ctx context.Context, targetURL string) (bool, er
 		robotsURL := parsed.Scheme + "://" + host + "/robots.txt"
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL, nil)
 		if err != nil {
-			s.cacheRobots(host, nil)
-			return true, nil
+			return false, err
 		}
 		req.Header.Set("User-Agent", userAgent)
-		resp, err := s.httpClient.Do(req)
-		if err != nil || resp.StatusCode == http.StatusNotFound {
-			s.cacheRobots(host, nil)
-			return true, nil
-		}
-		defer resp.Body.Close()
-		limited := io.LimitReader(resp.Body, 512*1024)
-		bodyBytes, err := io.ReadAll(limited)
+		resp, err := httpfetch.Fetch(s.httpClient, req, httpfetch.Options{MaxBytes: 512 * 1024, Logger: s.logger, Stage: "robots", StopRetry: isBlockedFetchResponse})
 		if err != nil {
+			return false, err
+		}
+		if isBlockedFetchResponse(resp) {
+			return false, &FetchError{Kind: FetchErrorKindBlockedAccess, StatusCode: resp.StatusCode}
+		}
+		if resp.StatusCode == http.StatusNotFound {
 			s.cacheRobots(host, nil)
 			return true, nil
 		}
-		data, err = robotstxt.FromStatusAndBytes(resp.StatusCode, bodyBytes)
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 || resp.StatusCode == http.StatusRequestTimeout {
+			return false, fmt.Errorf("temporary robots.txt failure (HTTP %d)", resp.StatusCode)
+		}
+		data, err = robotstxt.FromStatusAndBytes(resp.StatusCode, resp.Body)
 		if err != nil {
 			s.cacheRobots(host, nil)
 			return true, nil
