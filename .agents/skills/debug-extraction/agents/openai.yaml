@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug Extraction"
+  short_description: "Trace recipe extraction failures and add regression tests"
+  default_prompt: "Use $debug-extraction to diagnose this recipe extraction failure and reproduce any code defect with an offline regression test."
