@@ -30,7 +30,10 @@ export const RecipeApp = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTryingArchivedVersion, setIsTryingArchivedVersion] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [extraction, setExtraction] = useState<ExtractionStatusResponse | null>(null);
+  const [extraction, setExtraction] = useState<
+    (ExtractionStatusResponse & { inputURL: string }) | null
+  >(null);
+  const [isExtractionDismissed, setIsExtractionDismissed] = useState(false);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [loadingRecipeId, setLoadingRecipeId] = useState<string | null>(null);
@@ -110,7 +113,7 @@ export const RecipeApp = () => {
           throw new Error(`Status check failed (${res.status})`);
         }
         const body = (await res.json()) as ExtractionStatusResponse;
-        setExtraction(body);
+        setExtraction({ ...body, inputURL: extraction.inputURL });
         if (body.status === "done" && body.recipe_id) {
           await loadRecipes(activeProfileId);
           setNewRecipeId(body.recipe_id);
@@ -125,6 +128,13 @@ export const RecipeApp = () => {
   }, [activeProfileId, extraction, terminalStatuses]);
 
   useEffect(() => {
+    if (extraction?.status === "done") {
+      setURL((currentURL) => currentURL === extraction.inputURL ? "" : currentURL);
+    }
+  }, [extraction]);
+
+  useEffect(() => {
+    setIsExtractionDismissed(false);
     if (activeProfileId == null) {
       setRecipes([]);
       setSelectedRecipe(null);
@@ -170,7 +180,7 @@ export const RecipeApp = () => {
 
   const submitExtraction = async (
     sourceURL: string,
-    options?: { clearCurrentExtraction?: boolean },
+    options?: { clearCurrentExtraction?: boolean; inputURL?: string },
   ) => {
     if (!activeProfileId) {
       setSubmitError("Select a profile before extracting recipes.");
@@ -210,7 +220,9 @@ export const RecipeApp = () => {
         id: body.extraction_id,
         source_url: sourceURL,
         status: body.status,
+        inputURL: options?.inputURL ?? url,
       });
+      setIsExtractionDismissed(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown request error";
       setSubmitError(message);
@@ -246,7 +258,10 @@ export const RecipeApp = () => {
       }
 
       const body = (await res.json()) as ArchivedSnapshotResponse;
-      await submitExtraction(body.archived_url, { clearCurrentExtraction: false });
+      await submitExtraction(body.archived_url, {
+        clearCurrentExtraction: false,
+        inputURL: extraction.inputURL,
+      });
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -413,10 +428,11 @@ export const RecipeApp = () => {
           </Alert>
         )}
 
-        {extraction && (
+        {extraction && !isExtractionDismissed && (
           <ExtractionCard
             extraction={extraction}
             isPolling={isPolling}
+            onDismiss={() => setIsExtractionDismissed(true)}
             isTryingArchivedVersion={isTryingArchivedVersion}
             onTryArchivedVersion={handleTryArchivedVersion}
           />

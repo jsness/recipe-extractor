@@ -1,9 +1,10 @@
-import { Alert, Badge, Button, Card, Group, Loader, Stack, Text } from "@mantine/core";
+import { Alert, Badge, Button, Card, CloseButton, Group, Loader, Stack, Text } from "@mantine/core";
 import { ExtractionStatusResponse } from "../types";
 
 type ExtractionCardProps = {
   extraction: ExtractionStatusResponse;
   isPolling: boolean;
+  onDismiss: () => void;
   isTryingArchivedVersion?: boolean;
   onTryArchivedVersion?: () => void;
 };
@@ -11,14 +12,23 @@ type ExtractionCardProps = {
 export const ExtractionCard = ({
   extraction,
   isPolling,
+  onDismiss,
   isTryingArchivedVersion = false,
   onTryArchivedVersion,
 }: ExtractionCardProps) => (
   <Card withBorder radius="md" padding="md">
     <Stack gap="xs">
-      <Group justify="space-between">
-        <Text size="sm" c="dimmed">Extraction ID</Text>
-        <Text size="sm" ff="monospace">{extraction.id}</Text>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Group justify="space-between" style={{ flex: 1, minWidth: 0 }}>
+          <Text size="sm" c="dimmed">Extraction ID</Text>
+          <Text size="sm" ff="monospace" style={{ overflowWrap: "anywhere" }}>{extraction.id}</Text>
+        </Group>
+        <CloseButton
+          aria-label="Dismiss extraction"
+          type="button"
+          onClick={onDismiss}
+          style={{ flexShrink: 0 }}
+        />
       </Group>
       <Group justify="space-between">
         <Text size="sm" c="dimmed">Status</Text>
