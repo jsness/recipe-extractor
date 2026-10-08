@@ -47,6 +47,7 @@ export type Recipe = {
   yield?: string;
   times?: Record<string, string>;
   notes?: string;
+  reminder?: string;
   source_url: string;
   created_at: string;
   related_recipes?: RelatedRecipe[];

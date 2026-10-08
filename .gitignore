@@ -17,3 +17,6 @@ Thumbs.db
 git-ignore
 
 .idea/
+
+# Local plans
+plans/

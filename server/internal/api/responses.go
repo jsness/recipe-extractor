@@ -45,6 +45,7 @@ type recipeResponse struct {
 	Yield          *string                 `json:"yield,omitempty"`
 	Times          map[string]string       `json:"times,omitempty"`
 	Notes          *string                 `json:"notes,omitempty"`
+	Reminder       *string                 `json:"reminder,omitempty"`
 	SourceURL      string                  `json:"source_url"`
 	CreatedAt      time.Time               `json:"created_at"`
 	RelatedRecipes []relatedRecipeResponse `json:"related_recipes,omitempty"`
@@ -73,6 +74,7 @@ func newRecipeResponse(recipe store.Recipe, related []store.RelatedRecipe) recip
 		Yield:        recipe.Yield,
 		Times:        recipe.Times,
 		Notes:        recipe.Notes,
+		Reminder:     recipe.Reminder,
 		SourceURL:    recipe.SourceURL,
 		CreatedAt:    recipe.CreatedAt,
 	}

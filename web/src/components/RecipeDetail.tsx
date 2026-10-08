@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Anchor, Badge, Button, Divider, Group, List, NumberInput, Stack, Text, Title } from "@mantine/core";
 import { Recipe } from "../types";
+import { RecipeReminder } from "./RecipeReminder";
 import { printRecipe } from "../utils/printRecipe";
 import { extractServingCount, scaleIngredientGroups } from "../utils/servingScaler";
 
@@ -9,6 +10,7 @@ type RecipeDetailProps = {
   onBack: () => void;
   onDelete: (id: string) => Promise<void>;
   onSelectRecipe: (id: string) => void;
+  onSaveReminder: (id: string, reminder: string) => Promise<boolean>;
 };
 
 const formatServingCount = (value: number) => {
@@ -16,7 +18,11 @@ const formatServingCount = (value: number) => {
   return Math.abs(value - rounded) < 0.00001 ? String(rounded) : String(value);
 };
 
-export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: RecipeDetailProps) => {
+export const RecipeDetail = ({
+  recipe, onBack, onDelete, onSelectRecipe, onSaveReminder,
+}: RecipeDetailProps) => {
+  const [isEditingReminder, setIsEditingReminder] = useState(false);
+  const addReminderRef = useRef<HTMLButtonElement>(null);
   const baseServingCount = useMemo(() => extractServingCount(recipe.yield), [recipe.yield]);
   const [targetServingCount, setTargetServingCount] = useState<number | null>(baseServingCount);
   const timeEntries = recipe.times ? Object.entries(recipe.times) : [];
@@ -70,17 +76,24 @@ export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: Recip
         <Button variant="subtle" size="sm" onClick={onBack} w="fit-content" px={0}>
           {"<- Back to recipes"}
         </Button>
-        <Button
-          variant="light"
-          size="xs"
-          onClick={() => printRecipe({
-            ...recipe,
-            ingredients: scaledIngredientGroups,
-            yield: isScaled ? scaledYield : recipe.yield,
-          })}
-        >
-          Print
-        </Button>
+        <Group gap="xs" wrap="nowrap">
+          {!recipe.reminder && !isEditingReminder && (
+            <Button ref={addReminderRef} variant="light" size="xs" onClick={() => setIsEditingReminder(true)}>
+              Add Reminder
+            </Button>
+          )}
+          <Button
+            variant="light"
+            size="xs"
+            onClick={() => printRecipe({
+              ...recipe,
+              ingredients: scaledIngredientGroups,
+              yield: isScaled ? scaledYield : recipe.yield,
+            })}
+          >
+            Print
+          </Button>
+        </Group>
       </Group>
 
       <div>
@@ -98,6 +111,14 @@ export const RecipeDetail = ({ recipe, onBack, onDelete, onSelectRecipe }: Recip
           ))}
         </Group>
       )}
+
+      <RecipeReminder
+        reminder={recipe.reminder}
+        isEditing={isEditingReminder}
+        onEditingChange={setIsEditingReminder}
+        onSave={(reminder) => onSaveReminder(recipe.id, reminder)}
+        onFocusAdd={() => addReminderRef.current?.focus()}
+      />
 
       <div>
         <Group justify="space-between" align="flex-end" mb="xs">

@@ -34,6 +34,7 @@ type Recipe struct {
 	Yield            *string
 	Times            map[string]string
 	Notes            *string
+	Reminder         *string
 	SourceURL        string
 	LinkedRecipeURLs []string
 	CreatedAt        time.Time

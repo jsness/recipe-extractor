@@ -3,22 +3,24 @@ package store
 import (
 	"context"
 	"database/sql"
+
+	"github.com/jackc/pgx/v5"
 )
 
 func (s *Store) GetRecipeByID(ctx context.Context, profileID, id string) (Recipe, error) {
 	const q = `
-		SELECT id::text, title, ingredients, instructions, yield, times, notes, source_url, linked_recipe_urls, created_at
+		SELECT id::text, title, ingredients, instructions, yield, times, notes, source_url, linked_recipe_urls, created_at, reminder
 		FROM recipes
 		WHERE id = $1 AND profile_id = $2
 	`
 
 	var r Recipe
 	var ingredientsRaw, instructionsRaw, timesRaw, linkedURLsRaw []byte
-	var yield, notes sql.NullString
+	var yield, notes, reminder sql.NullString
 
 	err := s.Pool.QueryRow(ctx, q, id, profileID).Scan(
 		&r.ID, &r.Title, &ingredientsRaw, &instructionsRaw,
-		&yield, &timesRaw, &notes, &r.SourceURL, &linkedURLsRaw, &r.CreatedAt,
+		&yield, &timesRaw, &notes, &r.SourceURL, &linkedURLsRaw, &r.CreatedAt, &reminder,
 	)
 	if err != nil {
 		return Recipe{}, err
@@ -27,7 +29,19 @@ func (s *Store) GetRecipeByID(ctx context.Context, profileID, id string) (Recipe
 	if err := decodeRecipeRow(&r, ingredientsRaw, instructionsRaw, timesRaw, linkedURLsRaw, yield, notes); err != nil {
 		return Recipe{}, err
 	}
+	r.Reminder = nullableStringPtr(reminder)
 	return r, nil
+}
+
+func (s *Store) UpdateRecipeReminder(ctx context.Context, profileID, id string, reminder *string) error {
+	result, err := s.Pool.Exec(ctx, `UPDATE recipes SET reminder = $3 WHERE id = $1 AND profile_id = $2`, id, profileID, reminder)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) ListRecipes(ctx context.Context, profileID string) ([]RecipeSummary, error) {

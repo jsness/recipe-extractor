@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Anchor, Button, Container, Group, Stack, Text, Title } from "@mantine/core";
 import {
   ArchivedSnapshotResponse,
@@ -38,6 +38,7 @@ export const RecipeApp = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [loadingRecipeId, setLoadingRecipeId] = useState<string | null>(null);
   const [newRecipeId, setNewRecipeId] = useState<string | null>(null);
+  const recipeContext = useRef(0);
 
   const terminalStatuses = useMemo(() => new Set(["done", "failed"]), []);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -277,6 +278,7 @@ export const RecipeApp = () => {
       return;
     }
 
+    const context = ++recipeContext.current;
     setLoadingRecipeId(id);
     try {
       const res = await fetch(`/api/v1/recipes/${id}`, {
@@ -285,12 +287,37 @@ export const RecipeApp = () => {
       if (!res.ok) {
         throw new Error(`Failed to load recipe (${res.status})`);
       }
-      setSelectedRecipe((await res.json()) as Recipe);
+      const recipe = (await res.json()) as Recipe;
+      if (context === recipeContext.current) setSelectedRecipe(recipe);
     } catch {
       // TODO: surface error
     } finally {
-      setLoadingRecipeId(null);
+      if (context === recipeContext.current) setLoadingRecipeId(null);
     }
+  };
+
+  const handleSaveReminder = async (id: string, reminder: string) => {
+    if (!activeProfileId) throw new Error("Select a profile before saving a reminder.");
+    const context = recipeContext.current;
+    const res = await fetch(`/api/v1/recipes/${id}/reminder`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...profileHeaders(activeProfileId) },
+      body: JSON.stringify({ reminder }),
+    });
+    if (!res.ok) {
+      let message = `Unable to save reminder (${res.status})`;
+      try {
+        const body = await res.json();
+        if (typeof body.error === "string") message = body.error;
+      } catch {
+        // Keep the status message when the response has no JSON body.
+      }
+      throw new Error(message);
+    }
+    const updatedRecipe = (await res.json()) as Recipe;
+    if (context !== recipeContext.current) return false;
+    setSelectedRecipe((current) => current?.id === id ? updatedRecipe : current);
+    return true;
   };
 
   const handleDeleteRecipe = async (id: string) => {
@@ -298,6 +325,7 @@ export const RecipeApp = () => {
       return;
     }
 
+    ++recipeContext.current;
     setSubmitError("");
 
     try {
@@ -352,6 +380,7 @@ export const RecipeApp = () => {
 
       const profile = (await res.json()) as Profile;
       setProfiles((current) => [...current, profile]);
+      ++recipeContext.current;
       setActiveProfileId(profile.id);
       setIsProfilePanelVisible(false);
       setCreateProfileName("");
@@ -365,6 +394,8 @@ export const RecipeApp = () => {
 
   const isPolling = extraction != null && !terminalStatuses.has(extraction.status);
   const handleSelectProfile = (profileId: string | null) => {
+    ++recipeContext.current;
+    setLoadingRecipeId(null);
     setActiveProfileId(profileId);
     setIsProfilePanelVisible(profileId == null);
   };
@@ -440,10 +471,16 @@ export const RecipeApp = () => {
 
         {activeProfileId && selectedRecipe ? (
           <RecipeDetail
+            key={`${activeProfileId}:${selectedRecipe.id}`}
             recipe={selectedRecipe}
-            onBack={() => setSelectedRecipe(null)}
+            onBack={() => {
+              ++recipeContext.current;
+              setSelectedRecipe(null);
+              setLoadingRecipeId(null);
+            }}
             onDelete={handleDeleteRecipe}
             onSelectRecipe={handleViewRecipe}
+            onSaveReminder={handleSaveReminder}
           />
         ) : activeProfileId ? (
           (recipes.length > 0 || searchQuery.trim() !== "") && (

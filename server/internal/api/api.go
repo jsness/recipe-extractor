@@ -45,6 +45,7 @@ func (h *Handler) Routes() http.Handler {
 		r.Get("/recipes", h.handleListRecipes)
 		r.Get("/recipes/{id}", h.handleGetRecipe)
 		r.Delete("/recipes/{id}", h.handleDeleteRecipe)
+		r.Patch("/recipes/{id}/reminder", h.handleUpdateRecipeReminder)
 		r.Get("/recipe-extractions/{id}", h.handleGetRecipeExtraction)
 	})
 

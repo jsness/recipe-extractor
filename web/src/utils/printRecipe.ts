@@ -35,6 +35,10 @@ const buildPrintableRecipeHTML = (recipe: Recipe) => {
     ? `<section><h2>Notes</h2><p>${escapeHTML(recipe.notes)}</p></section>`
     : "";
 
+  const reminderHTML = recipe.reminder
+    ? `<section class="reminder"><h2>Reminder</h2><p>${escapeHTML(recipe.reminder)}</p></section>`
+    : "";
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -75,11 +79,18 @@ const buildPrintableRecipeHTML = (recipe: Recipe) => {
           section + section {
             margin-top: 1rem;
           }
+          .reminder {
+            border: 2px solid #9c7500;
+            padding: 0.75rem 1rem;
+          }
+          .reminder h2 { margin-top: 0; }
+          .reminder p { white-space: pre-wrap; overflow-wrap: anywhere; }
         </style>
       </head>
       <body>
         <h1>${escapeHTML(recipe.title)}</h1>
         ${metadataHTML}
+        ${reminderHTML}
         <section>
           <h2>Ingredients</h2>
           ${ingredientsHTML}

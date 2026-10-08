@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -158,6 +159,21 @@ func (a *App) GetRecipeExtraction(ctx context.Context, profileID, id string) (st
 
 func (a *App) DeleteRecipe(ctx context.Context, profileID, id string) (bool, error) {
 	return a.store.DeleteRecipe(ctx, profileID, id)
+}
+
+func normalizeReminder(text string) *string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	return &text
+}
+
+func (a *App) UpdateRecipeReminder(ctx context.Context, profileID, id, reminder string) (RecipeDetail, error) {
+	if err := a.store.UpdateRecipeReminder(ctx, profileID, id, normalizeReminder(reminder)); err != nil {
+		return RecipeDetail{}, err
+	}
+	return a.GetRecipe(ctx, profileID, id)
 }
 
 func (a *App) FindArchivedSnapshot(ctx context.Context, sourceURL string) (*wayback.Snapshot, error) {
