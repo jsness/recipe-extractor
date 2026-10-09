@@ -27,8 +27,9 @@ type profileResponse struct {
 }
 
 type recipeSummaryResponse struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type relatedRecipeResponse struct {

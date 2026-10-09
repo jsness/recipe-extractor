@@ -23,6 +23,31 @@ fails, the worker can try up to two alternative captures. The saved recipe's
 remains the submitted URL. See [Extraction Reliability](extraction-reliability.md)
 for limits and diagnostics.
 
+## Recipe list and sorting
+
+`GET /api/v1/recipes` returns summaries containing `id`, `title`, and `created_at`:
+
+```json
+[
+  {
+    "id": "e5f6g7h8-...",
+    "title": "Chocolate Chip Cookies",
+    "created_at": "2026-03-28T12:00:00Z"
+  }
+]
+```
+
+`created_at` is the timestamp when the recipe was first successfully saved to the
+active profile. Extraction updates preserve it. It is not the source publication,
+extraction job creation, or archive capture date. The list remains newest first
+by default; an empty profile returns `[]`.
+
+The recipe library's **Sort by** control offers title A to Z, title Z to A,
+extracted newest first, and extracted oldest first. Sorting happens in the browser
+after title filtering and does not require additional requests. The browser remembers
+the selection across reloads and profile switches. Date comparisons use the full
+timestamp. This additive response field needs no database migration.
+
 ## Recipe reminders
 
 Migration `006_recipe_reminders.sql` renames the former notice column to

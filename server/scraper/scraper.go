@@ -20,7 +20,7 @@ import (
 )
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
-const userAgent = "recipe-extractor/1.13.1 (+https://github.com/jsness/recipe-extractor)"
+const userAgent = "recipe-extractor/1.14.0 (+https://github.com/jsness/recipe-extractor)"
 const blockedAccessMessage = "site blocked automated access and requires a browser challenge"
 
 var ErrRobotsDenied = errors.New("robots.txt disallows scraping")

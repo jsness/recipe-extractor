@@ -46,7 +46,7 @@ func (s *Store) UpdateRecipeReminder(ctx context.Context, profileID, id string, 
 
 func (s *Store) ListRecipes(ctx context.Context, profileID string) ([]RecipeSummary, error) {
 	const q = `
-		SELECT id::text, title
+		SELECT id::text, title, created_at
 		FROM recipes
 		WHERE profile_id = $1
 		ORDER BY created_at DESC
@@ -61,7 +61,7 @@ func (s *Store) ListRecipes(ctx context.Context, profileID string) ([]RecipeSumm
 	var recipes []RecipeSummary
 	for rows.Next() {
 		var r RecipeSummary
-		if err := rows.Scan(&r.ID, &r.Title); err != nil {
+		if err := rows.Scan(&r.ID, &r.Title, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		recipes = append(recipes, r)

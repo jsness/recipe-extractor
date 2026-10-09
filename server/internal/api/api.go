@@ -175,7 +175,7 @@ func (h *Handler) handleListRecipes(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]recipeSummaryResponse, len(recipes))
 	for i, r := range recipes {
-		resp[i] = recipeSummaryResponse{ID: r.ID, Title: r.Title}
+		resp[i] = recipeSummaryResponse{ID: r.ID, Title: r.Title, CreatedAt: r.CreatedAt}
 	}
 
 	writeJSON(w, http.StatusOK, resp)

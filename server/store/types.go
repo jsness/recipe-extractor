@@ -52,8 +52,9 @@ type RecipeInput struct {
 }
 
 type RecipeSummary struct {
-	ID    string
-	Title string
+	ID        string
+	Title     string
+	CreatedAt time.Time
 }
 
 type RelatedRecipe struct {

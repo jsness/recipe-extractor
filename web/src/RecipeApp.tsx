@@ -14,12 +14,14 @@ import { ProfilePanel } from "./components/ProfilePanel";
 import { RecipeList } from "./components/RecipeList";
 import { RecipeDetail } from "./components/RecipeDetail";
 import GithubLogo from "./icons/GithubLogo";
+import { loadRecipeSort, RECIPE_SORT_STORAGE_KEY, sortRecipes } from "./utils/sortRecipes";
 
 const ACTIVE_PROFILE_STORAGE_KEY = "recipe-extractor.active-profile-id";
 
 export const RecipeApp = () => {
   const [url, setURL] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState(loadRecipeSort);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [isProfilePanelVisible, setIsProfilePanelVisible] = useState(true);
@@ -46,13 +48,20 @@ export const RecipeApp = () => {
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
     [activeProfileId, profiles],
   );
-  const filteredRecipes = useMemo(() => {
-    if (normalizedSearchQuery === "") {
-      return recipes;
-    }
+  const visibleRecipes = useMemo(() => {
+    const matchingRecipes = normalizedSearchQuery === ""
+      ? recipes
+      : recipes.filter((recipe) => recipe.title.toLowerCase().includes(normalizedSearchQuery));
+    return sortRecipes(matchingRecipes, sortOrder);
+  }, [normalizedSearchQuery, recipes, sortOrder]);
 
-    return recipes.filter((recipe) => recipe.title.toLowerCase().includes(normalizedSearchQuery));
-  }, [normalizedSearchQuery, recipes]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RECIPE_SORT_STORAGE_KEY, sortOrder);
+    } catch {
+      // Keep the selected order for this session when storage is unavailable.
+    }
+  }, [sortOrder]);
 
   const profileHeaders = (profileId: string) => ({
     "X-Profile-Id": profileId,
@@ -485,12 +494,14 @@ export const RecipeApp = () => {
         ) : activeProfileId ? (
           (recipes.length > 0 || searchQuery.trim() !== "") && (
             <RecipeList
-              recipes={filteredRecipes}
+              recipes={visibleRecipes}
               loadingRecipeId={loadingRecipeId}
               onView={handleViewRecipe}
               newRecipeId={newRecipeId}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              sortOrder={sortOrder}
+              onSortChange={setSortOrder}
             />
           )
         ) : null}
