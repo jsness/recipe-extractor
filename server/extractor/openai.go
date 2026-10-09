@@ -138,7 +138,7 @@ func normalizeWithChatCompletion(ctx context.Context, httpClient *http.Client, i
 
 	recipe, err := parseModelRecipe(content)
 	if err != nil {
-		return Recipe{}, fmt.Errorf("failed to parse model json: %w", err)
+		return Recipe{}, fmt.Errorf("%w: failed to parse model json: %v", ErrInvalidRecipe, err)
 	}
 
 	normalizeRecipe(&recipe)

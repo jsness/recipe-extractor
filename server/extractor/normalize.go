@@ -154,7 +154,7 @@ func normalizeTimeLabel(label string) string {
 
 func validateRecipe(recipe Recipe) error {
 	if recipe.Title == "" {
-		return fmt.Errorf("normalized recipe is missing title")
+		return fmt.Errorf("%w: normalized recipe is missing title", ErrInvalidRecipe)
 	}
 	hasIngredients := false
 	for _, g := range recipe.Ingredients {
@@ -164,10 +164,10 @@ func validateRecipe(recipe Recipe) error {
 		}
 	}
 	if !hasIngredients {
-		return fmt.Errorf("normalized recipe is missing ingredients")
+		return fmt.Errorf("%w: normalized recipe is missing ingredients", ErrInvalidRecipe)
 	}
 	if len(recipe.Instructions) == 0 {
-		return fmt.Errorf("normalized recipe is missing instructions")
+		return fmt.Errorf("%w: normalized recipe is missing instructions", ErrInvalidRecipe)
 	}
 	return nil
 }

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"io"
+	"log"
 	"net/http"
 	neturl "net/url"
 	"regexp"
@@ -16,16 +16,21 @@ import (
 	"github.com/temoto/robotstxt"
 
 	"github.com/jsness/recipe-extractor/server/extractor"
+	"github.com/jsness/recipe-extractor/server/internal/httpfetch"
 )
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
 const userAgent = "recipe-extractor/1.12.0 (+https://github.com/jsness/recipe-extractor)"
 const blockedAccessMessage = "site blocked automated access and requires a browser challenge"
 
+var ErrRobotsDenied = errors.New("robots.txt disallows scraping")
+var ErrRobotsCheck = errors.New("robots.txt check")
+
 type Scraper struct {
 	httpClient  *http.Client
 	robotsMu    sync.RWMutex
 	robotsCache map[string]*robotstxt.RobotsData
+	logger      *log.Logger
 }
 
 type Result struct {
@@ -57,19 +62,27 @@ func (e *FetchError) Error() string {
 }
 
 func New(timeout time.Duration) *Scraper {
+	return NewWithLogger(timeout, nil)
+}
+
+func NewWithLogger(timeout time.Duration, logger *log.Logger) *Scraper {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
 	return &Scraper{
 		httpClient:  &http.Client{Timeout: timeout},
 		robotsCache: make(map[string]*robotstxt.RobotsData),
+		logger:      logger,
 	}
 }
 
 func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	allowed, err := s.robotsAllowed(ctx, sourceURL)
 	if err != nil {
-		return Result{}, fmt.Errorf("robots.txt check: %w", err)
+		return Result{}, fmt.Errorf("%w: %w", ErrRobotsCheck, err)
 	}
 	if !allowed {
-		return Result{}, fmt.Errorf("robots.txt disallows scraping %s", sourceURL)
+		return Result{}, fmt.Errorf("%w %s", ErrRobotsDenied, sourceURL)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sourceURL, nil)
@@ -78,23 +91,20 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	res, err := s.httpClient.Do(req)
+	res, err := httpfetch.Fetch(s.httpClient, req, httpfetch.Options{
+		MaxBytes:  maxBodyBytes,
+		Logger:    s.logger,
+		Stage:     "page",
+		StopRetry: isBlockedFetchResponse,
+	})
 	if err != nil {
 		return Result{}, err
 	}
-	defer res.Body.Close()
-
-	limited := io.LimitReader(res.Body, maxBodyBytes)
-	bodyBytes, err := io.ReadAll(limited)
-	if err != nil {
-		return Result{}, err
+	html := string(res.Body)
+	if isBlockedFetchResponse(res) {
+		return Result{}, &FetchError{Kind: FetchErrorKindBlockedAccess, StatusCode: res.StatusCode}
 	}
-
-	html := string(bodyBytes)
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		if isBlockedAccessResponse(res, html) {
-			return Result{}, &FetchError{Kind: FetchErrorKindBlockedAccess, StatusCode: res.StatusCode}
-		}
 		return Result{}, &FetchError{Kind: FetchErrorKindUnexpectedStatus, StatusCode: res.StatusCode}
 	}
 
@@ -116,6 +126,10 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	}, nil
 }
 
+func isBlockedFetchResponse(res *httpfetch.Response) bool {
+	return isBlockedAccessResponse(&http.Response{StatusCode: res.StatusCode, Header: res.Header}, string(res.Body))
+}
+
 func IsBlockedAccessError(err error) bool {
 	var fetchErr *FetchError
 	return errors.As(err, &fetchErr) && fetchErr.Kind == FetchErrorKindBlockedAccess
@@ -129,12 +143,18 @@ func isBlockedAccessResponse(res *http.Response, body string) bool {
 	if strings.EqualFold(strings.TrimSpace(res.Header.Get("cf-mitigated")), "challenge") {
 		return true
 	}
+	lowerBody := strings.ToLower(body)
+	// High-confidence challenge markers apply even when the server returns 200.
+	// A mere mention of "captcha" on a normal page must not classify it as blocked.
+	if strings.Contains(lowerBody, "enable javascript and cookies to continue") ||
+		(strings.Contains(lowerBody, "<title>just a moment") && strings.Contains(lowerBody, "cf-chl-")) {
+		return true
+	}
 
 	if res.StatusCode != http.StatusForbidden && res.StatusCode != http.StatusTooManyRequests {
 		return false
 	}
 
-	lowerBody := strings.ToLower(body)
 	return strings.Contains(lowerBody, "enable javascript and cookies to continue") ||
 		strings.Contains(lowerBody, "just a moment") ||
 		strings.Contains(lowerBody, "captcha")

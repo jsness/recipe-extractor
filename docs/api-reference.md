@@ -8,6 +8,7 @@ All endpoints are under `/api/v1`.
 | `POST` | `/api/v1/profiles` | Create a profile. Body: `{"name": "Weeknight"}`. |
 | `POST` | `/api/v1/recipes` | Submit a URL for extraction. Body: `{"url": "https://..."}`. Returns `extraction_id` and initial `status`. |
 | `GET` | `/api/v1/recipe-extractions/{id}` | Poll extraction status. Status values: `queued`, `extracting`, `done`, `failed`. |
+| `GET` | `/api/v1/archived-snapshot?url=...` | Find an available Wayback snapshot. Returns `archived_url` and `timestamp`, or `404` when none is available. |
 | `GET` | `/api/v1/recipes` | List saved recipes for the active profile. Requires header `X-Profile-Id`. |
 | `GET` | `/api/v1/recipes/{id}` | Get full recipe details for the active profile. Requires header `X-Profile-Id`. |
 | `DELETE` | `/api/v1/recipes/{id}` | Delete a saved recipe in the active profile. Requires header `X-Profile-Id`. Returns `204` on success and `404` if the recipe does not exist. |
@@ -15,6 +16,12 @@ All endpoints are under `/api/v1`.
 | `GET` | `/healthz` | Health check. |
 
 All recipe and extraction endpoints require the `X-Profile-Id` header.
+
+Fetching and archive lookups use bounded retries. When an archived extraction
+fails, the worker can try up to two alternative captures. The saved recipe's
+`source_url` identifies the successful capture; the extraction's `source_url`
+remains the submitted URL. See [Extraction Reliability](extraction-reliability.md)
+for limits and diagnostics.
 
 ## Recipe reminders
 

@@ -1,6 +1,13 @@
 package extractor
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrInvalidRecipe identifies content failures, rather than provider or network
+// failures. Another archived capture may contain a usable recipe.
+var ErrInvalidRecipe = errors.New("invalid recipe content")
 
 type Input struct {
 	SourceURL   string
