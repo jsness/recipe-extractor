@@ -63,6 +63,12 @@ URL and links to the resulting recipe via `recipe_id`.
 
 ## Diagnostics and testing
 
+The Docker builder uses Go 1.27.1, matching the toolchain used to verify native
+and container extraction. Go's HTTP/TLS behavior can change between toolchains,
+and a site may challenge one build while accepting another. When updating the
+builder, verify fetching from the built runtime image as well as running offline
+tests. A successful native extraction alone does not verify the Docker build.
+
 Worker logs include extraction IDs and normalization duration. HTTP logs include
 stage, host, attempt, status, duration, and retry wait. Archive recovery logs
 include the selected snapshot URL and timestamp, each failure, and success.
