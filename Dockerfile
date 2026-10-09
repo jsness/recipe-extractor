@@ -7,7 +7,8 @@ COPY web/ ./web/
 RUN cd web && npm run build
 
 # Stage 2: Build Go binary with embedded frontend
-FROM golang:1.24-alpine AS builder
+# Match the toolchain verified for native and container recipe fetching.
+FROM golang:1.27.1-alpine AS builder
 WORKDIR /app
 COPY server/go.mod server/go.sum ./
 RUN go mod download
