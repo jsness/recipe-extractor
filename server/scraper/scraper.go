@@ -20,7 +20,7 @@ import (
 )
 
 const maxBodyBytes int64 = 2 * 1024 * 1024
-const userAgent = "recipe-extractor/1.14.0 (+https://github.com/jsness/recipe-extractor)"
+const userAgent = "recipe-extractor/1.14.1 (+https://github.com/jsness/recipe-extractor)"
 const blockedAccessMessage = "site blocked automated access and requires a browser challenge"
 
 var ErrRobotsDenied = errors.New("robots.txt disallows scraping")
@@ -109,7 +109,11 @@ func (s *Scraper) Fetch(ctx context.Context, sourceURL string) (Result, error) {
 	}
 
 	jsonld := extractJSONLD(html)
-	text := collapseWhitespace(stripTags(annotateLinks(html)))
+	// Scripts and styles can exhaust the text budget before the recipe starts.
+	// Keep the original HTML for structured data and remove these blocks only
+	// from the text sent to the model.
+	textHTML := nonContentRegex.ReplaceAllString(html, " ")
+	text := collapseWhitespace(stripTags(annotateLinks(textHTML)))
 	if len(text) > 20000 {
 		text = text[:20000]
 	}
@@ -169,6 +173,7 @@ func IsArchivedURL(rawURL string) bool {
 }
 
 var scriptRegex = regexp.MustCompile(`(?is)<script\b([^>]*)>(.*?)</script>`)
+var nonContentRegex = regexp.MustCompile(`(?is)<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>`)
 var jsonLDTypeAttrRegex = regexp.MustCompile(`(?is)\btype\s*=\s*(?:"application/ld\+json"|'application/ld\+json'|application/ld\+json(?:\s|$))`)
 var tagRegex = regexp.MustCompile(`(?s)<[^>]+>`)
 var linkRegex = regexp.MustCompile(`(?is)<a\s+[^>]*href=["']([^"'#][^"']*)["'][^>]*>(.*?)</a>`)
